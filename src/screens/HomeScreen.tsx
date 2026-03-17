@@ -17,6 +17,8 @@ const recent = [...mockVideos].reverse();
 export default function HomeScreen({ navigation }: any) {
   const goToVideo = (video: VideoClip) =>
     navigation.navigate('VideoDetail', { video });
+  const goToArtist = (artist: string) =>
+    navigation.navigate('Artist', { artist });
 
   return (
     <View style={styles.container}>
@@ -68,7 +70,9 @@ export default function HomeScreen({ navigation }: any) {
             >
               <Image source={{ uri: video.thumbnail }} style={styles.thumbnail} />
               <View style={styles.cardBody}>
-                <Text style={styles.artist}>{video.artist}</Text>
+                <TouchableOpacity onPress={() => goToArtist(video.artist)}>
+                  <Text style={styles.artist}>{video.artist}</Text>
+                </TouchableOpacity>
                 <Text style={styles.festival}>{video.festival}</Text>
                 <Text style={styles.meta}>
                   {video.location} · {video.date}

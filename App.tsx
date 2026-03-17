@@ -14,6 +14,8 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import VideoDetailScreen from './src/screens/VideoDetailScreen';
 import EventsScreen from './src/screens/EventsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import ArtistScreen from './src/screens/ArtistScreen';
+import AuthScreen from './src/screens/AuthScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -103,6 +105,11 @@ export default function App() {
           name="VideoDetail"
           component={VideoDetailScreen}
           options={{ title: 'Clip', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="Artist"
+          component={ArtistScreen}
+          options={({ route }: any) => ({ title: route.params?.artist ?? 'Artist', headerBackTitle: 'Back' })}
         />
       </Stack.Navigator>
     </NavigationContainer>
