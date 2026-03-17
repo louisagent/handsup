@@ -51,7 +51,7 @@ function getTier(score: number): HeatTier {
 }
 
 const tierMeta: Record<HeatTier, { label: string; emoji: string; color: string }> = {
-  'on-fire': { label: 'On fire',  emoji: '🔥',  color: '#EF4444' }, // red
+  'on-fire': { label: 'On fire',  emoji: '🔥🔥🔥',  color: '#EF4444' }, // red
   'hot':     { label: 'Hot',      emoji: '🔥',  color: '#F97316' }, // orange
   'rising':  { label: 'Rising',   emoji: '📈',  color: '#EAB308' }, // yellow
   'fresh':   { label: 'Fresh',    emoji: '✨',  color: '#8B5CF6' }, // purple
