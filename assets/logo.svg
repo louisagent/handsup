@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="60%" r="50%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#0D0D0D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="handGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="handGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A78BFA"/>
+      <stop offset="100%" stop-color="#6D28D9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="400" fill="#0D0D0D" rx="60"/>
+
+  <!-- Glow -->
+  <ellipse cx="200" cy="230" rx="160" ry="120" fill="url(#glow)"/>
+
+  <!-- Left hand (raised) -->
+  <!-- Palm -->
+  <rect x="108" y="200" width="52" height="60" rx="14" fill="url(#handGrad)"/>
+  <!-- Fingers -->
+  <rect x="112" y="148" width="12" height="62" rx="6" fill="url(#handGrad)"/>
+  <rect x="128" y="136" width="12" height="72" rx="6" fill="url(#handGrad)"/>
+  <rect x="144" y="142" width="12" height="66" rx="6" fill="url(#handGrad)"/>
+  <rect x="108" y="168" width="12" height="50" rx="6" fill="url(#handGrad)" transform="rotate(-12, 114, 168)"/>
+  <!-- Thumb -->
+  <rect x="88" y="210" width="30" height="12" rx="6" fill="url(#handGrad)" transform="rotate(-20, 103, 216)"/>
+
+  <!-- Right hand (raised) -->
+  <!-- Palm -->
+  <rect x="240" y="200" width="52" height="60" rx="14" fill="url(#handGrad2)"/>
+  <!-- Fingers -->
+  <rect x="244" y="148" width="12" height="62" rx="6" fill="url(#handGrad2)"/>
+  <rect x="260" y="136" width="12" height="72" rx="6" fill="url(#handGrad2)"/>
+  <rect x="276" y="142" width="12" height="66" rx="6" fill="url(#handGrad2)"/>
+  <rect x="280" y="168" width="12" height="50" rx="6" fill="url(#handGrad2)" transform="rotate(12, 286, 168)"/>
+  <!-- Thumb -->
+  <rect x="282" y="210" width="30" height="12" rx="6" fill="url(#handGrad2)" transform="rotate(20, 297, 216)"/>
+
+  <!-- Wordmark -->
+  <text x="200" y="318" font-family="'Helvetica Neue', Arial, sans-serif" font-size="42" font-weight="800" fill="#FFFFFF" text-anchor="middle" letter-spacing="-1">handsup</text>
+
+  <!-- Tagline -->
+  <text x="200" y="344" font-family="'Helvetica Neue', Arial, sans-serif" font-size="15" font-weight="400" fill="#8B5CF6" text-anchor="middle" letter-spacing="3">BE THERE. WE'LL FILM IT.</text>
+</svg>

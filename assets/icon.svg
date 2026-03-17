@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#1a0533"/>
+      <stop offset="100%" stop-color="#0D0D0D"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="65%" r="45%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="leftHand" x1="0%" y1="0%" x2="60%" y2="100%">
+      <stop offset="0%" stop-color="#DDD6FE"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="rightHand" x1="100%" y1="0%" x2="40%" y2="100%">
+      <stop offset="0%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#6D28D9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- App icon background with rounded corners (handled by OS, but included) -->
+  <rect width="1024" height="1024" fill="url(#bgGrad)" rx="220"/>
+
+  <!-- Glow bloom -->
+  <ellipse cx="512" cy="620" rx="380" ry="280" fill="url(#glow)"/>
+
+  <!-- Left hand -->
+  <rect x="240" y="460" width="136" height="160" rx="36" fill="url(#leftHand)"/>
+  <rect x="252" y="310" width="32" height="170" rx="16" fill="url(#leftHand)" transform="rotate(-6, 268, 310)"/>
+  <rect x="295" y="280" width="32" height="192" rx="16" fill="url(#leftHand)"/>
+  <rect x="338" y="296" width="32" height="180" rx="16" fill="url(#leftHand)" transform="rotate(4, 354, 296)"/>
+  <rect x="214" y="490" width="78" height="30" rx="15" fill="url(#leftHand)" transform="rotate(-22, 253, 505)"/>
+
+  <!-- Right hand -->
+  <rect x="648" y="460" width="136" height="160" rx="36" fill="url(#rightHand)"/>
+  <rect x="660" y="310" width="32" height="170" rx="16" fill="url(#rightHand)" transform="rotate(6, 676, 310)"/>
+  <rect x="697" y="280" width="32" height="192" rx="16" fill="url(#rightHand)"/>
+  <rect x="734" y="296" width="32" height="180" rx="16" fill="url(#rightHand)" transform="rotate(-4, 750, 296)"/>
+  <rect x="732" y="490" width="78" height="30" rx="15" fill="url(#rightHand)" transform="rotate(22, 771, 505)"/>
+
+  <!-- Small music dots / energy lines between hands -->
+  <circle cx="512" cy="380" r="10" fill="#8B5CF6" opacity="0.6"/>
+  <circle cx="480" cy="330" r="6" fill="#A78BFA" opacity="0.4"/>
+  <circle cx="544" cy="330" r="6" fill="#A78BFA" opacity="0.4"/>
+  <circle cx="512" cy="290" r="4" fill="#C4B5FD" opacity="0.3"/>
+</svg>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Handsup – Be there. We'll film it.</title>
+  <meta name="description" content="A platform for music festival goers to share and download video clips from live events. Put your phone down — someone else got the shot." />
+  <meta property="og:title" content="Handsup – Be there. We'll film it." />
+  <meta property="og:description" content="Browse and download video clips from your favourite festivals. Put your phone down." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --void: #0D0D0D;
+      --card: #161616;
+      --surface: #1a1a1a;
+      --border: #222;
+      --purple: #8B5CF6;
+      --purple-deep: #7C3AED;
+      --purple-soft: #A78BFA;
+      --purple-light: #C4B5FD;
+      --white: #ffffff;
+      --body: #aaaaaa;
+      --muted: #555555;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--void);
+      color: var(--white);
+      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(13,13,13,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .nav-logo { font-size: 22px; font-weight: 900; color: var(--white); text-decoration: none; }
+    .nav-logo span { color: var(--purple); }
+    .nav-links { display: flex; gap: 32px; align-items: center; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; font-weight: 600; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--white); }
+    .nav-cta {
+      background: var(--purple);
+      color: var(--white) !important;
+      padding: 10px 22px;
+      border-radius: 10px;
+      font-size: 14px !important;
+      transition: background 0.2s !important;
+    }
+    .nav-cta:hover { background: var(--purple-deep) !important; color: var(--white) !important; }
+
+    /* HERO */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-glow {
+      position: absolute;
+      width: 700px; height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(139,92,246,0.18) 0%, transparent 70%);
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    .hero-emoji { font-size: 72px; margin-bottom: 24px; }
+    .hero h1 {
+      font-size: clamp(48px, 8vw, 88px);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -2px;
+      max-width: 800px;
+    }
+    .hero h1 .purple { color: var(--purple); }
+    .hero-sub {
+      font-size: clamp(18px, 2.5vw, 22px);
+      color: var(--body);
+      margin-top: 24px;
+      max-width: 560px;
+      line-height: 1.6;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .btn-primary {
+      background: var(--purple);
+      color: var(--white);
+      padding: 16px 36px;
+      border-radius: 14px;
+      font-size: 17px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary:hover { background: var(--purple-deep); transform: translateY(-2px); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--white);
+      padding: 16px 36px;
+      border-radius: 14px;
+      font-size: 17px;
+      font-weight: 700;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--purple); color: var(--purple); }
+    .hero-tagline {
+      margin-top: 56px;
+      font-size: 13px;
+      color: var(--purple);
+      letter-spacing: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* PROBLEM STRIP */
+    .problem {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 64px 24px;
+      text-align: center;
+    }
+    .problem p {
+      font-size: clamp(20px, 3vw, 28px);
+      font-weight: 700;
+      max-width: 720px;
+      margin: 0 auto;
+      line-height: 1.5;
+      color: var(--white);
+    }
+    .problem p span { color: var(--purple); }
+
+    /* HOW IT WORKS */
+    section { padding: 100px 24px; }
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--purple);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 900;
+      text-align: center;
+      letter-spacing: -1px;
+      margin-bottom: 64px;
+    }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 24px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .step {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 28px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .step:hover { border-color: var(--purple); }
+    .step-num {
+      font-size: 36px;
+      font-weight: 900;
+      color: var(--purple);
+      margin-bottom: 16px;
+    }
+    .step h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .step p { font-size: 14px; color: var(--body); line-height: 1.6; }
+
+    /* FEATURES */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .feature {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+    }
+    .feature-icon { font-size: 28px; margin-bottom: 14px; }
+    .feature h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .feature p { font-size: 14px; color: var(--body); line-height: 1.6; }
+
+    /* SOCIAL PROOF */
+    .social-proof { background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .stats-row {
+      display: flex;
+      justify-content: center;
+      gap: 80px;
+      flex-wrap: wrap;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .stat { text-align: center; }
+    .stat-value { font-size: 52px; font-weight: 900; color: var(--purple); line-height: 1; }
+    .stat-label { font-size: 15px; color: var(--body); margin-top: 8px; }
+
+    /* FOR FESTIVALS */
+    .for-festivals {
+      background: linear-gradient(135deg, #0D0D0D 0%, #1a0533 50%, #0D0D0D 100%);
+    }
+    .festival-card {
+      max-width: 700px;
+      margin: 0 auto;
+      background: rgba(139,92,246,0.08);
+      border: 1px solid rgba(139,92,246,0.3);
+      border-radius: 24px;
+      padding: 48px;
+      text-align: center;
+    }
+    .festival-card h3 { font-size: 28px; font-weight: 800; margin-bottom: 16px; }
+    .festival-card p { color: var(--body); font-size: 16px; line-height: 1.7; margin-bottom: 32px; }
+    .festival-perks {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 32px;
+    }
+    .perk {
+      background: rgba(139,92,246,0.15);
+      border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--purple-light);
+    }
+
+    /* CTA */
+    .cta-section {
+      text-align: center;
+      padding: 120px 24px;
+    }
+    .cta-section h2 { margin-bottom: 20px; }
+    .cta-section p { color: var(--body); font-size: 18px; margin-bottom: 40px; max-width: 500px; margin-left: auto; margin-right: auto; }
+
+    /* FOOTER */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 24px;
+      text-align: center;
+    }
+    .footer-logo { font-size: 20px; font-weight: 900; color: var(--white); margin-bottom: 8px; }
+    .footer-logo span { color: var(--purple); }
+    footer p { color: var(--muted); font-size: 13px; }
+
+    /* RESPONSIVE */
+    @media (max-width: 600px) {
+      nav { padding: 16px 20px; }
+      .nav-links { display: none; }
+      .steps, .features-grid { grid-template-columns: 1fr; }
+      .stats-row { gap: 40px; }
+      .festival-card { padding: 28px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">🙌 hands<span>up</span></a>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#festivals">For Festivals</a>
+    <a href="#early-access" class="nav-cta">Get early access</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-emoji">🙌</div>
+  <h1>Be there.<br><span class="purple">We'll film it.</span></h1>
+  <p class="hero-sub">
+    A platform for music festival goers to share and download video clips from live events — so you can put your phone down and actually enjoy the show.
+  </p>
+  <div class="hero-actions">
+    <a href="#early-access" class="btn-primary">Get early access</a>
+    <a href="#how" class="btn-secondary">See how it works</a>
+  </div>
+  <p class="hero-tagline">Hands up. Phone down.</p>
+</section>
+
+<!-- PROBLEM -->
+<div class="problem">
+  <p>
+    You're at the best set of the year.<br/>
+    You pull out your phone.<br/>
+    <span>And suddenly you're watching it through a 6-inch screen.</span>
+  </p>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <p class="section-label">How it works</p>
+  <h2>Simple as it gets</h2>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>Attend</h3>
+      <p>Go to your festival. Leave your phone in your pocket. Actually be there.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>Search</h3>
+      <p>Search by artist, festival name, location, or date. Find the exact set you were at.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>Download</h3>
+      <p>Browse clips uploaded by others who were there. Save the ones you love to your camera roll.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <h3>Share</h3>
+      <p>Filmed something great? Upload it. Tag it. The whole community benefits.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section style="background: var(--card); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
+  <p class="section-label">Features</p>
+  <h2>Built for festival people</h2>
+  <div class="features-grid">
+    <div class="feature">
+      <div class="feature-icon">🔍</div>
+      <h3>Event-native search</h3>
+      <p>Find clips by artist, festival, city, or date. Not an algorithm — your intent, instantly.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">⬇</div>
+      <h3>Download to camera roll</h3>
+      <p>Clips save directly to your phone. No app required to share them anywhere.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🎪</div>
+      <h3>Festival discovery</h3>
+      <p>Browse upcoming and past events. See what's happening, what was captured, what's worth attending.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🎥</div>
+      <h3>Community footage</h3>
+      <p>Real clips from real people. No corporate camera crew — just 50,000 people all capturing different moments.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">💜</div>
+      <h3>Creator rewards</h3>
+      <p>The best uploaders earn rewards — credits, merch, tickets. Film great, get recognised.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🔒</div>
+      <h3>Free to use</h3>
+      <p>Upload free. Download free. The platform grows with the community — no paywall on the experience.</p>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="social-proof">
+  <p class="section-label">The opportunity</p>
+  <h2>Live music is back</h2>
+  <div class="stats-row">
+    <div class="stat">
+      <div class="stat-value">32M+</div>
+      <div class="stat-label">Australians attend live events per year</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">87%</div>
+      <div class="stat-label">Of festival goers film at least once per set</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value">0</div>
+      <div class="stat-label">Dedicated platforms for crowd-sourced concert footage</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOR FESTIVALS -->
+<section class="for-festivals" id="festivals">
+  <p class="section-label">Partnerships</p>
+  <h2>For festival organisers</h2>
+  <div class="festival-card">
+    <h3>Your crowd is your camera crew.</h3>
+    <p>
+      Partner with Handsup and every attendee becomes part of your content team. Get aggregate analytics, branded event pages, and crowd-sourced coverage — without hiring a single crew member.
+    </p>
+    <div class="festival-perks">
+      <span class="perk">Branded event page</span>
+      <span class="perk">Clip analytics</span>
+      <span class="perk">Verified uploader programme</span>
+      <span class="perk">Post-event content library</span>
+      <span class="perk">Audience engagement data</span>
+    </div>
+    <a href="mailto:hello@handsup.app" class="btn-primary">Partner with us</a>
+  </div>
+</section>
+
+<!-- EARLY ACCESS CTA -->
+<section class="cta-section" id="early-access">
+  <h2>Be first in line 🙌</h2>
+  <p>Handsup is launching soon. Drop your email and we'll let you know when you can get early access.</p>
+  <form style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; max-width: 480px; margin: 0 auto;"
+        onsubmit="handleSubmit(event)">
+    <input
+      type="email"
+      placeholder="your@email.com"
+      required
+      style="flex: 1; min-width: 220px; padding: 16px 20px; border-radius: 12px; background: #161616; border: 1px solid #333; color: #fff; font-size: 15px; outline: none;"
+    />
+    <button type="submit" class="btn-primary" style="white-space: nowrap;">Notify me</button>
+  </form>
+  <p id="success-msg" style="display:none; color: #8B5CF6; margin-top: 16px; font-weight: 600;">
+    🙌 You're on the list. See you at the festival.
+  </p>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">🙌 hands<span>up</span></div>
+  <p style="margin-top: 8px;">Be there. We'll film it.</p>
+  <p style="margin-top: 16px; color: #333;">© 2026 Handsup. Built with 💜 in Melbourne.</p>
+</footer>
+
+<script>
+  function handleSubmit(e) {
+    e.preventDefault();
+    document.getElementById('success-msg').style.display = 'block';
+    e.target.style.display = 'none';
+  }
+
+  // Smooth active nav highlighting
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-links a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.style.color = a.getAttribute('href') === `#${current}` ? '#8B5CF6' : '';
+    });
+  });
+</script>
+
+</body>
+</html>
