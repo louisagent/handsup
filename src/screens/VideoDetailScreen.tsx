@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { VideoClip } from '../data/mockData';
+import { getHeatBadge } from '../utils/heatScore';
 
 export default function VideoDetailScreen({ route }: any) {
   const { video }: { video: VideoClip } = route.params;
@@ -38,7 +39,17 @@ export default function VideoDetailScreen({ route }: any) {
       </View>
 
       <View style={styles.body}>
-        <Text style={styles.artist}>{video.artist}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={styles.artist}>{video.artist}</Text>
+          {(() => {
+            const badge = getHeatBadge(video);
+            return badge ? (
+              <View style={[styles.heatBadge, { backgroundColor: badge.color + '22', borderColor: badge.color + '55' }]}>
+                <Text style={[styles.heatText, { color: badge.color }]}>{badge.emoji} {badge.label}</Text>
+              </View>
+            ) : null;
+          })()}
+        </View>
         <Text style={styles.festival}>{video.festival}</Text>
         <Text style={styles.meta}>
           📍 {video.location}   📅 {video.date}   ⏱ {video.duration}
@@ -133,4 +144,6 @@ const styles = StyleSheet.create({
   },
   downloadedBtn: { backgroundColor: '#1a3a1a', borderWidth: 1, borderColor: '#2d5a2d' },
   downloadText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  heatBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
+  heatText: { fontSize: 12, fontWeight: '700' },
 });

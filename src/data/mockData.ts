@@ -10,6 +10,7 @@ export interface VideoClip {
   downloads: number;
   duration: string;
   thumbnail: string;
+  created_at: string; // ISO timestamp for heat score
 }
 
 export const mockVideos: VideoClip[] = [
@@ -25,6 +26,7 @@ export const mockVideos: VideoClip[] = [
     downloads: 841,
     duration: '3:42',
     thumbnail: 'https://picsum.photos/seed/tame/400/225',
+    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2h ago
   },
   {
     id: '2',
@@ -38,6 +40,7 @@ export const mockVideos: VideoClip[] = [
     downloads: 1204,
     duration: '2:58',
     thumbnail: 'https://picsum.photos/seed/flume/400/225',
+    created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5h ago
   },
   {
     id: '3',
@@ -51,6 +54,7 @@ export const mockVideos: VideoClip[] = [
     downloads: 2300,
     duration: '4:15',
     thumbnail: 'https://picsum.photos/seed/fred/400/225',
+    created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1h ago — newest, will rank high
   },
   {
     id: '4',
@@ -64,6 +68,7 @@ export const mockVideos: VideoClip[] = [
     downloads: 3100,
     duration: '3:30',
     thumbnail: 'https://picsum.photos/seed/disclosure/400/225',
+    created_at: new Date(Date.now() - 18 * 60 * 60 * 1000).toISOString(), // 18h ago
   },
   {
     id: '5',
@@ -77,6 +82,7 @@ export const mockVideos: VideoClip[] = [
     downloads: 1800,
     duration: '2:45',
     thumbnail: 'https://picsum.photos/seed/caribou/400/225',
+    created_at: new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString(), // 36h ago
   },
   {
     id: '6',
@@ -90,5 +96,6 @@ export const mockVideos: VideoClip[] = [
     downloads: 590,
     duration: '5:01',
     thumbnail: 'https://picsum.photos/seed/fourtet/400/225',
+    created_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(), // 3 days ago
   },
 ];

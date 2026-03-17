@@ -10,9 +10,10 @@ import {
   StatusBar,
 } from 'react-native';
 import { mockVideos, VideoClip } from '../data/mockData';
+import { getHeatBadge, sortByHeat } from '../utils/heatScore';
 
-const trending = [...mockVideos].sort((a, b) => b.downloads - a.downloads).slice(0, 3);
-const recent = [...mockVideos].reverse();
+const trending = sortByHeat(mockVideos).slice(0, 3);
+const recent = sortByHeat(mockVideos);
 
 export default function HomeScreen({ navigation }: any) {
   const goToVideo = (video: VideoClip) =>
@@ -70,9 +71,19 @@ export default function HomeScreen({ navigation }: any) {
             >
               <Image source={{ uri: video.thumbnail }} style={styles.thumbnail} />
               <View style={styles.cardBody}>
-                <TouchableOpacity onPress={() => goToArtist(video.artist)}>
-                  <Text style={styles.artist}>{video.artist}</Text>
-                </TouchableOpacity>
+                <View style={styles.cardTitleRow}>
+                  <TouchableOpacity onPress={() => goToArtist(video.artist)} style={{ flex: 1 }}>
+                    <Text style={styles.artist}>{video.artist}</Text>
+                  </TouchableOpacity>
+                  {(() => {
+                    const badge = getHeatBadge(video);
+                    return badge ? (
+                      <View style={[styles.heatBadge, { backgroundColor: badge.color + '22', borderColor: badge.color + '55' }]}>
+                        <Text style={[styles.heatBadgeText, { color: badge.color }]}>{badge.emoji} {badge.label}</Text>
+                      </View>
+                    ) : null;
+                  })()}
+                </View>
                 <Text style={styles.festival}>{video.festival}</Text>
                 <Text style={styles.meta}>
                   {video.location} · {video.date}
@@ -152,4 +163,13 @@ const styles = StyleSheet.create({
     borderTopColor: '#222',
   },
   statText: { fontSize: 12, color: '#555' },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  heatBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexShrink: 0,
+  },
+  heatBadgeText: { fontSize: 11, fontWeight: '700' },
 });
