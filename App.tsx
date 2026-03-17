@@ -13,6 +13,7 @@ import UploadScreen from './src/screens/UploadScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import VideoDetailScreen from './src/screens/VideoDetailScreen';
 import EventsScreen from './src/screens/EventsScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -53,6 +54,11 @@ function HomeTabs() {
         name="Upload"
         component={UploadScreen}
         options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🙌</Text> }}
+      />
+      <Tab.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 18, color }}>🔔</Text> }}
       />
       <Tab.Screen
         name="Profile"
