@@ -140,8 +140,9 @@ export default function EventDetailScreen({ route, navigation }: any) {
                       <Text style={styles.clipMeta}>{video.location} · {video.date}</Text>
                       <Text style={styles.clipDesc} numberOfLines={2}>{video.description}</Text>
                       <View style={styles.clipStats}>
-                        <Text style={styles.clipStat}>▶ {video.views.toLocaleString()}</Text>
                         <Text style={styles.clipStat}>⬇ {video.downloads.toLocaleString()}</Text>
+                        <Text style={styles.clipStat}>❤️ {video.likes.toLocaleString()}</Text>
+                        <Text style={styles.clipStat}>💬 {video.comments.length}</Text>
                         <Text style={styles.clipStat}>⏱ {video.duration}</Text>
                       </View>
                     </View>

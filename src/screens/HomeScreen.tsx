@@ -94,6 +94,8 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={styles.stats}>
                   <Text style={styles.statText}>▶ {video.views.toLocaleString()}</Text>
                   <Text style={styles.statText}>⬇ {video.downloads.toLocaleString()}</Text>
+                  <Text style={styles.statText}>❤️ {video.likes.toLocaleString()}</Text>
+                  <Text style={styles.statText}>💬 {video.comments.length}</Text>
                   <Text style={styles.statText}>⏱ {video.duration}</Text>
                 </View>
               </View>

@@ -17,14 +17,16 @@ function getArtistStats(artist: string) {
   );
   const totalViews = clips.reduce((sum, c) => sum + c.views, 0);
   const totalDownloads = clips.reduce((sum, c) => sum + c.downloads, 0);
+  const totalLikes = clips.reduce((sum, c) => sum + c.likes, 0);
+  const totalComments = clips.reduce((sum, c) => sum + c.comments.length, 0);
   const festivals = [...new Set(clips.map((c) => c.festival))];
   const locations = [...new Set(clips.map((c) => c.location))];
-  return { clips, totalViews, totalDownloads, festivals, locations };
+  return { clips, totalViews, totalDownloads, totalLikes, totalComments, festivals, locations };
 }
 
 export default function ArtistScreen({ route, navigation }: any) {
   const { artist } = route.params as { artist: string };
-  const { clips, totalViews, totalDownloads, festivals, locations } =
+  const { clips, totalViews, totalDownloads, totalLikes, totalComments, festivals, locations } =
     getArtistStats(artist);
 
   const renderClip = ({ item }: { item: VideoClip }) => (
@@ -65,13 +67,18 @@ export default function ArtistScreen({ route, navigation }: any) {
           {/* Stats row */}
           <View style={styles.statsRow}>
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{totalViews.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Total views</Text>
+              <Text style={styles.statValue}>{totalDownloads.toLocaleString()}</Text>
+              <Text style={styles.statLabel}>Downloads</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{totalDownloads.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Downloads</Text>
+              <Text style={styles.statValue}>{totalLikes.toLocaleString()}</Text>
+              <Text style={styles.statLabel}>Likes</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.stat}>
+              <Text style={styles.statValue}>{totalComments.toLocaleString()}</Text>
+              <Text style={styles.statLabel}>Comments</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.stat}>
@@ -115,8 +122,9 @@ export default function ArtistScreen({ route, navigation }: any) {
                   <Text style={styles.clipMeta}>{item.location} · {item.date}</Text>
                   <Text style={styles.clipDesc} numberOfLines={2}>{item.description}</Text>
                   <View style={styles.clipStats}>
-                    <Text style={styles.clipStat}>▶ {item.views.toLocaleString()}</Text>
                     <Text style={styles.clipStat}>⬇ {item.downloads.toLocaleString()}</Text>
+                    <Text style={styles.clipStat}>❤️ {item.likes.toLocaleString()}</Text>
+                    <Text style={styles.clipStat}>💬 {item.comments.length}</Text>
                     <Text style={styles.clipStat}>⏱ {item.duration}</Text>
                   </View>
                 </View>
