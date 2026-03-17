@@ -17,6 +17,7 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import ArtistScreen from './src/screens/ArtistScreen';
 import AuthScreen from './src/screens/AuthScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
+import LeaderboardScreen from './src/screens/LeaderboardScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -57,6 +58,11 @@ function HomeTabs() {
         name="Upload"
         component={UploadScreen}
         options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 20, color }}>🙌</Text> }}
+      />
+      <Tab.Screen
+        name="Leaderboard"
+        component={LeaderboardScreen}
+        options={{ tabBarIcon: ({ color }) => <Text style={{ fontSize: 18, color }}>🏆</Text> }}
       />
       <Tab.Screen
         name="Notifications"
