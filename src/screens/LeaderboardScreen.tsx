@@ -128,11 +128,11 @@ const monthlyLeaders: LeaderEntry[] = [
   { ...allTimeLeaders[3], rank: 6, points: 740, clips: 3, downloads: 1900 },
 ];
 
-// Active prizes
+// Prizes — coming soon
 const prizes = [
-  { icon: '🎟', title: 'Festival Tickets', desc: 'Top 3 this month win double passes to a partner festival', badge: 'Top 3' },
-  { icon: '👕', title: 'Handsup Merch Pack', desc: 'Top 10 uploaders get an exclusive merch drop', badge: 'Top 10' },
-  { icon: '💜', title: 'Platform Credits', desc: 'Every uploader earns download credits to spend on premium clips', badge: 'All uploaders' },
+  { icon: '🎟', title: 'Festival Tickets', desc: 'Top uploaders will win festival passes from our partners. Details coming soon.', badge: 'Coming soon' },
+  { icon: '👕', title: 'Merch & Rewards', desc: 'Exclusive drops for top contributors. Stay tuned.', badge: 'Coming soon' },
+  { icon: '💜', title: 'Platform Credits', desc: 'Credits system launching with v1.0. Upload now to get a head start on the board.', badge: 'Coming soon' },
 ];
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -280,20 +280,20 @@ export default function LeaderboardScreen() {
         <View style={styles.explainer}>
           <Text style={styles.explainerTitle}>How points work</Text>
           <View style={styles.explainerRow}>
-            <Text style={styles.explainerEmoji}>⬆️</Text>
-            <Text style={styles.explainerText}>+50 pts per clip uploaded</Text>
-          </View>
-          <View style={styles.explainerRow}>
             <Text style={styles.explainerEmoji}>⬇️</Text>
-            <Text style={styles.explainerText}>+5 pts per download your clip receives</Text>
+            <Text style={styles.explainerText}>+5 pts every time someone downloads your clip</Text>
           </View>
           <View style={styles.explainerRow}>
-            <Text style={styles.explainerEmoji}>🔥</Text>
-            <Text style={styles.explainerText}>Streak bonus: +20 pts per active day</Text>
+            <Text style={styles.explainerEmoji}>▶️</Text>
+            <Text style={styles.explainerText}>+2 pts every time someone watches the full video</Text>
           </View>
           <View style={styles.explainerRow}>
-            <Text style={styles.explainerEmoji}>✅</Text>
-            <Text style={styles.explainerText}>Verified clip (good quality): +25 pts bonus</Text>
+            <Text style={styles.explainerEmoji}>❤️</Text>
+            <Text style={styles.explainerText}>+1 pt every time someone likes your clip</Text>
+          </View>
+          <View style={styles.explainerRow}>
+            <Text style={styles.explainerEmoji}>💬</Text>
+            <Text style={styles.explainerText}>Comments boost your clip in Trending (not points)</Text>
           </View>
         </View>
 
@@ -463,13 +463,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   prizeBadge: {
-    backgroundColor: '#8B5CF622',
+    backgroundColor: '#2a2a2a',
     borderRadius: 8,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
   prizeBadgeText: {
-    color: '#8B5CF6',
+    color: '#666',
     fontSize: 10,
     fontWeight: '700',
   },
