@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSavedClips } from '../hooks/useSavedClips';
 import {
   View,
   Text,
@@ -15,6 +16,8 @@ export default function VideoDetailScreen({ route }: any) {
   const { video }: { video: VideoClip } = route.params;
   const [downloaded, setDownloaded] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const { isSaved, toggleSave } = useSavedClips();
+  const saved = isSaved(video.id);
 
   const handleDownload = () => {
     setDownloaded(true);
@@ -79,6 +82,15 @@ export default function VideoDetailScreen({ route }: any) {
         >
           <Text style={styles.downloadText}>
             {downloaded ? '✅ Saved to camera roll' : '⬇  Download to phone'}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.saveBtn, saved && styles.saveBtnActive]}
+          onPress={() => toggleSave(video.id)}
+        >
+          <Text style={styles.saveBtnText}>
+            {saved ? '🔖 Saved' : '🔖 Save clip'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -146,4 +158,10 @@ const styles = StyleSheet.create({
   downloadText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   heatBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, borderWidth: 1 },
   heatText: { fontSize: 12, fontWeight: '700' },
+  saveBtn: {
+    marginTop: 12, borderRadius: 14, paddingVertical: 14, alignItems: 'center',
+    borderWidth: 1, borderColor: '#333', backgroundColor: 'transparent',
+  },
+  saveBtnActive: { borderColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,0.1)' },
+  saveBtnText: { color: '#aaa', fontSize: 15, fontWeight: '600' },
 });

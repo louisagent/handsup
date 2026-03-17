@@ -13,6 +13,8 @@ import { festivals, FestivalEvent } from '../data/eventsData';
 const filters = ['All', 'Upcoming', 'Australia', 'International'];
 
 export default function EventsScreen({ navigation }: any) {
+  const goToEvent = (event: FestivalEvent) =>
+    navigation.navigate('EventDetail', { event });
   const [activeFilter, setActiveFilter] = useState('All');
 
   const filtered = festivals.filter((f) => {
@@ -24,7 +26,7 @@ export default function EventsScreen({ navigation }: any) {
   });
 
   const renderEvent = ({ item }: { item: FestivalEvent }) => (
-    <TouchableOpacity style={styles.card}>
+    <TouchableOpacity style={styles.card} onPress={() => goToEvent(item)}>
       <Image source={{ uri: item.image }} style={styles.image} />
       {item.upcoming && (
         <View style={styles.upcomingBadge}>

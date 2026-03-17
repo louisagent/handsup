@@ -16,6 +16,7 @@ import EventsScreen from './src/screens/EventsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import ArtistScreen from './src/screens/ArtistScreen';
 import AuthScreen from './src/screens/AuthScreen';
+import EventDetailScreen from './src/screens/EventDetailScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -110,6 +111,11 @@ export default function App() {
           name="Artist"
           component={ArtistScreen}
           options={({ route }: any) => ({ title: route.params?.artist ?? 'Artist', headerBackTitle: 'Back' })}
+        />
+        <Stack.Screen
+          name="EventDetail"
+          component={EventDetailScreen}
+          options={({ route }: any) => ({ title: route.params?.event?.name ?? 'Event', headerBackTitle: 'Back' })}
         />
       </Stack.Navigator>
     </NavigationContainer>
