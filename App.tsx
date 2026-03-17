@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import SplashScreen from './src/screens/SplashScreen';
 
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
@@ -63,6 +64,7 @@ function HomeTabs() {
 }
 
 export default function App() {
+  const [splashDone, setSplashDone] = useState(false);
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -71,7 +73,11 @@ export default function App() {
     });
   }, []);
 
-  if (onboarded === null) return null; // splash/loading
+  if (!splashDone) {
+    return <SplashScreen onDone={() => setSplashDone(true)} />;
+  }
+
+  if (onboarded === null) return null;
 
   if (!onboarded) {
     return <OnboardingScreen onDone={() => setOnboarded(true)} />;
