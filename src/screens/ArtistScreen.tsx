@@ -1,60 +1,226 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Image,
   ScrollView,
+  FlatList,
+  RefreshControl,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Linking,
+  Switch,
 } from 'react-native';
-import { mockVideos, VideoClip } from '../data/mockData';
+import { Ionicons } from '@expo/vector-icons';
+import { Clip } from '../types';
+import { getClipsByArtist } from '../services/clips';
+import { SkeletonCard } from '../components/SkeletonCard';
+import { isFollowing, followUser, unfollowUser } from '../services/follows';
+import * as Haptics from 'expo-haptics';
+import { getArtistClaim, getMyArtistClaim, ArtistClaim } from '../services/artistClaim';
+import { getArtistFestivalAppearances } from '../services/lineups';
 
-// Aggregate artist stats from all clips
-function getArtistStats(artist: string) {
-  const clips = mockVideos.filter(
-    (v) => v.artist.toLowerCase() === artist.toLowerCase()
-  );
-  const totalViews = clips.reduce((sum, c) => sum + c.views, 0);
-  const totalDownloads = clips.reduce((sum, c) => sum + c.downloads, 0);
-  const totalLikes = clips.reduce((sum, c) => sum + c.likes, 0);
-  const totalComments = clips.reduce((sum, c) => sum + c.comments.length, 0);
-  const festivals = [...new Set(clips.map((c) => c.festival))];
-  const locations = [...new Set(clips.map((c) => c.location))];
-  return { clips, totalViews, totalDownloads, totalLikes, totalComments, festivals, locations };
-}
+const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function ArtistScreen({ route, navigation }: any) {
   const { artist } = route.params as { artist: string };
-  const { clips, totalViews, totalDownloads, totalLikes, totalComments, festivals, locations } =
-    getArtistStats(artist);
 
-  const renderClip = ({ item }: { item: VideoClip }) => (
+  const [clips, setClips] = useState<Clip[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [following, setFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [uploaderChecked, setUploaderChecked] = useState(false);
+  const [notifyEnabled, setNotifyEnabled] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const viewModeLoaded = useRef(false);
+  const [artistClaim, setArtistClaim] = useState<ArtistClaim | null>(null);
+  const [myClaim, setMyClaim] = useState<ArtistClaim | null>(null);
+  const [upcomingGigs, setUpcomingGigs] = useState<any[]>([]);
+
+  // Load persisted view mode once on mount
+  useEffect(() => {
+    AsyncStorage.getItem('handsup_artist_view_mode').then((val) => {
+      if (val === 'grid' || val === 'list') setViewMode(val);
+      viewModeLoaded.current = true;
+    }).catch(() => { viewModeLoaded.current = true; });
+  }, []);
+
+  const loadClips = useCallback(async () => {
+    try {
+      setError(null);
+      const data = await getClipsByArtist(artist);
+      setClips(data);
+    } catch (e: any) {
+      setError(e?.message ?? 'Failed to load clips');
+    } finally {
+      setLoading(false);
+    }
+  }, [artist]);
+
+  useEffect(() => { loadClips(); }, [loadClips]);
+
+  // Load artist claim data
+  useEffect(() => {
+    Promise.all([
+      getArtistClaim(artist).catch(() => null),
+      getMyArtistClaim(artist).catch(() => null),
+    ]).then(([claim, myClaimData]) => {
+      setArtistClaim(claim);
+      setMyClaim(myClaimData);
+    });
+    // Load festival appearances
+    getArtistFestivalAppearances(artist)
+      .then(setUpcomingGigs)
+      .catch(() => {});
+  }, [artist]);
+
+  // Once clips load, check follow status for uploader_id of first clip
+  useEffect(() => {
+    if (uploaderChecked || clips.length === 0) return;
+    const uploaderId = clips[0]?.uploader_id;
+    if (!uploaderId) {
+      setUploaderChecked(true);
+      return;
+    }
+    setUploaderChecked(true);
+    isFollowing(uploaderId).then(setFollowing).catch(() => {});
+  }, [clips, uploaderChecked]);
+
+  // Load notify preference once we know the uploader
+  useEffect(() => {
+    const uid = clips.length > 0 ? clips[0]?.uploader_id : null;
+    if (!uid) return;
+    AsyncStorage.getItem(`handsup_artist_notify_${uid}`)
+      .then((val) => setNotifyEnabled(val === 'true'))
+      .catch(() => {});
+  }, [clips]);
+
+  // Persist view mode whenever it changes (after initial load)
+  useEffect(() => {
+    if (!viewModeLoaded.current) return;
+    AsyncStorage.setItem('handsup_artist_view_mode', viewMode).catch(() => {});
+  }, [viewMode]);
+
+  const uploaderUserId = clips.length > 0 ? clips[0]?.uploader_id : null;
+
+  const handleFollowToggle = async () => {
+    if (!uploaderUserId || followLoading) return;
+    setFollowLoading(true);
+    try {
+      if (following) {
+        await unfollowUser(uploaderUserId);
+        setFollowing(false);
+      } else {
+        await followUser(uploaderUserId);
+        setFollowing(true);
+      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch {
+      Alert.alert('Error', 'Could not update follow status.');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
+
+  const handleNotifyToggle = async (value: boolean) => {
+    if (!uploaderUserId) return;
+    setNotifyEnabled(value);
+    await AsyncStorage.setItem(`handsup_artist_notify_${uploaderUserId}`, value ? 'true' : 'false').catch(() => {});
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadClips();
+    setRefreshing(false);
+  };
+
+  // Is this artist verified?
+  const isArtistVerified = clips.some((c) => c.uploader?.is_verified === true);
+
+  // Aggregate stats
+  const totalViews = clips.reduce((sum, c) => sum + (c.view_count ?? 0), 0);
+  const totalDownloads = clips.reduce((sum, c) => sum + (c.download_count ?? 0), 0);
+  const festivals = [...new Set(clips.map((c) => c.festival_name).filter(Boolean))];
+
+  const renderClipCard = (item: Clip) => (
     <TouchableOpacity
+      key={item.id}
       style={styles.clipCard}
-      onPress={() => navigation.navigate('VideoDetail', { video: item })}
+      onPress={() => navigation.navigate('VerticalFeed', { initialClip: item, clips })}
+      activeOpacity={0.85}
     >
-      <Image source={{ uri: item.thumbnail }} style={styles.thumb} />
-      <View style={styles.clipInfo}>
-        <Text style={styles.clipFestival}>{item.festival}</Text>
-        <Text style={styles.clipMeta}>
-          {item.location} · {item.date}
-        </Text>
-        <Text style={styles.clipDesc} numberOfLines={2}>
-          {item.description}
-        </Text>
-        <View style={styles.clipStats}>
-          <Text style={styles.clipStat}>▶ {item.views.toLocaleString()}</Text>
-          <Text style={styles.clipStat}>⬇ {item.downloads.toLocaleString()}</Text>
-          <Text style={styles.clipStat}>⏱ {item.duration}</Text>
+      {item.thumbnail_url ? (
+        <Image source={{ uri: item.thumbnail_url }} style={styles.thumb} />
+      ) : (
+        <View style={[styles.thumb, styles.thumbPlaceholder]}>
+          <Ionicons name="musical-notes-outline" size={24} color="#333" />
         </View>
+      )}
+      <View style={styles.clipInfo}>
+        <Text style={styles.clipFestival}>{item.festival_name}</Text>
+        <Text style={styles.clipMeta}>
+          {item.location} · {item.clip_date}
+        </Text>
+        {item.description ? (
+          <Text style={styles.clipDesc} numberOfLines={2}>
+            {item.description}
+          </Text>
+        ) : null}
+        <View style={styles.clipStats}>
+          <Text style={styles.clipStat}>▶ {(item.view_count ?? 0).toLocaleString()}</Text>
+          <Text style={styles.clipStat}>⬇ {(item.download_count ?? 0).toLocaleString()}</Text>
+          {item.duration_seconds != null && (
+            <Text style={styles.clipStat}>⏱ {item.duration_seconds}s</Text>
+          )}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const GRID_ITEM_SIZE = (SCREEN_WIDTH - 32 - 8) / 2; // 16px padding each side, 8px gap
+
+  const renderGridCard = ({ item }: { item: Clip }) => (
+    <TouchableOpacity
+      style={[styles.gridCard, { width: GRID_ITEM_SIZE }]}
+      onPress={() => navigation.navigate('VerticalFeed', { initialClip: item, clips })}
+      activeOpacity={0.85}
+    >
+      {item.thumbnail_url ? (
+        <Image source={{ uri: item.thumbnail_url }} style={[styles.gridThumb, { width: GRID_ITEM_SIZE, height: GRID_ITEM_SIZE }]} />
+      ) : (
+        <View style={[styles.gridThumb, styles.thumbPlaceholder, { width: GRID_ITEM_SIZE, height: GRID_ITEM_SIZE }]}>
+          <Ionicons name="musical-notes-outline" size={28} color="#333" />
+        </View>
+      )}
+      <View style={styles.gridInfo}>
+        <Text style={styles.gridArtist} numberOfLines={1}>{item.artist}</Text>
+        <Text style={styles.gridFestival} numberOfLines={1}>{item.festival_name}</Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <StatusBar barStyle="light-content" />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#8B5CF6"
+            colors={['#8B5CF6']}
+          />
+        }
+      >
         {/* Hero */}
         <View style={styles.hero}>
           <View style={styles.heroGlow} />
@@ -62,37 +228,126 @@ export default function ArtistScreen({ route, navigation }: any) {
             <Text style={styles.avatarEmoji}>🎤</Text>
           </View>
           <Text style={styles.artistName}>{artist}</Text>
-          <Text style={styles.clipCount}>{clips.length} clip{clips.length !== 1 ? 's' : ''} on Handsup</Text>
+          {!loading && (
+            <Text style={styles.clipCount}>
+              {clips.length} clip{clips.length !== 1 ? 's' : ''} on Handsup
+            </Text>
+          )}
+
+          {/* Follow button */}
+          {!loading && uploaderUserId && (
+            <TouchableOpacity
+              style={[styles.followBtn, following && styles.followBtnActive]}
+              onPress={handleFollowToggle}
+              disabled={followLoading}
+              activeOpacity={0.8}
+            >
+              {followLoading ? (
+                <ActivityIndicator size="small" color={following ? '#fff' : '#8B5CF6'} />
+              ) : (
+                <Text style={[styles.followBtnText, following && styles.followBtnTextActive]}>
+                  {following ? 'Following' : 'Follow'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Verified artist claim info */}
+          {artistClaim && (
+            <View style={styles.claimSection}>
+              <View style={styles.verifiedArtistBadge}>
+                <Ionicons name="checkmark-circle" size={14} color="#8B5CF6" />
+                <Text style={styles.verifiedArtistText}>Verified Artist</Text>
+              </View>
+              {artistClaim.bio ? <Text style={styles.artistBio}>{artistClaim.bio}</Text> : null}
+              <View style={styles.socialLinks}>
+                {artistClaim.instagram_url && (
+                  <TouchableOpacity onPress={() => Linking.openURL(artistClaim.instagram_url!)} style={styles.socialBtn}>
+                    <Ionicons name="logo-instagram" size={20} color="#E1306C" />
+                  </TouchableOpacity>
+                )}
+                {artistClaim.spotify_url && (
+                  <TouchableOpacity onPress={() => Linking.openURL(artistClaim.spotify_url!)} style={styles.socialBtn}>
+                    <Ionicons name="musical-notes" size={20} color="#1DB954" />
+                  </TouchableOpacity>
+                )}
+                {artistClaim.soundcloud_url && (
+                  <TouchableOpacity onPress={() => Linking.openURL(artistClaim.soundcloud_url!)} style={styles.socialBtn}>
+                    <Ionicons name="cloud-outline" size={20} color="#FF5500" />
+                  </TouchableOpacity>
+                )}
+                {artistClaim.website_url && (
+                  <TouchableOpacity onPress={() => Linking.openURL(artistClaim.website_url!)} style={styles.socialBtn}>
+                    <Ionicons name="globe-outline" size={20} color="#8B5CF6" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          )}
+
+          {/* Claim this page button */}
+          {!artistClaim && !myClaim && (
+            <TouchableOpacity
+              style={styles.claimBtn}
+              onPress={() => navigation.navigate('ArtistClaim', { artistName: artist })}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="shield-checkmark-outline" size={16} color="#8B5CF6" />
+              <Text style={styles.claimBtnText}>Are you {artist}? Claim this page</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Pending claim banner */}
+          {myClaim && myClaim.status === 'pending' && (
+            <View style={styles.pendingClaimBanner}>
+              <Ionicons name="time-outline" size={14} color="#FBBF24" />
+              <Text style={styles.pendingClaimText}>Claim pending review</Text>
+            </View>
+          )}
+
+          {/* Notify on new clips toggle — only visible when following */}
+          {!loading && uploaderUserId && following && (
+            <View style={styles.notifyRow}>
+              <Text style={styles.notifyLabel}>🔔 Notify on new clips</Text>
+              <Switch
+                value={notifyEnabled}
+                onValueChange={handleNotifyToggle}
+                trackColor={{ false: '#333', true: '#8B5CF6' }}
+                thumbColor={notifyEnabled ? '#fff' : '#888'}
+              />
+            </View>
+          )}
 
           {/* Stats row */}
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{totalDownloads.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Downloads</Text>
+          {!loading && clips.length > 0 && (
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{clips.length.toLocaleString()}</Text>
+                <Text style={styles.statLabel}>Clips</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{totalDownloads.toLocaleString()}</Text>
+                <Text style={styles.statLabel}>Downloads</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={styles.statValue}>{festivals.length}</Text>
+                <Text style={styles.statLabel}>Festival{festivals.length !== 1 ? 's' : ''}</Text>
+              </View>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{totalLikes.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Likes</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{totalComments.toLocaleString()}</Text>
-              <Text style={styles.statLabel}>Comments</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.stat}>
-              <Text style={styles.statValue}>{festivals.length}</Text>
-              <Text style={styles.statLabel}>Festival{festivals.length !== 1 ? 's' : ''}</Text>
-            </View>
-          </View>
+          )}
         </View>
 
         {/* Festivals strip */}
-        {festivals.length > 0 && (
+        {!loading && festivals.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Seen at</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.festivalChips}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.festivalChips}
+            >
               {festivals.map((f) => (
                 <View key={f} style={styles.chip}>
                   <Text style={styles.chipText}>{f}</Text>
@@ -102,43 +357,92 @@ export default function ArtistScreen({ route, navigation }: any) {
           </View>
         )}
 
+        {/* 🎪 Playing at — upcoming festival appearances */}
+        {upcomingGigs.length > 0 && (
+          <View style={styles.gigsSection}>
+            <Text style={styles.gigsSectionTitle}>🎪 Playing at</Text>
+            {upcomingGigs.map((gig) => (
+              <TouchableOpacity
+                key={gig.id}
+                style={styles.gigRow}
+                onPress={() => navigation.navigate('EventDetail', { event: gig.event })}
+                activeOpacity={0.85}
+              >
+                <View style={styles.gigInfo}>
+                  <Text style={styles.gigName}>{gig.event?.name}</Text>
+                  <Text style={styles.gigMeta}>
+                    {gig.event?.city}{gig.stage ? ` · ${gig.stage}` : ''}{gig.day_label ? ` · ${gig.day_label}` : ''}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#333" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* Clips */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>All clips</Text>
-          {clips.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>No clips yet. Be the first to upload one! 🙌</Text>
-            </View>
-          ) : (
-            clips.map((item) => (
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>
+              All clips{!loading && clips.length > 0 ? ` (${clips.length})` : ''}
+            </Text>
+            {!loading && clips.length > 0 && (
               <TouchableOpacity
-                key={item.id}
-                style={styles.clipCard}
-                onPress={() => navigation.navigate('VideoDetail', { video: item })}
+                onPress={() => setViewMode((m) => m === 'list' ? 'grid' : 'list')}
+                style={styles.viewToggleBtn}
+                activeOpacity={0.8}
               >
-                <Image source={{ uri: item.thumbnail }} style={styles.thumb} />
-                <View style={styles.clipInfo}>
-                  <Text style={styles.clipFestival}>{item.festival}</Text>
-                  <Text style={styles.clipMeta}>{item.location} · {item.date}</Text>
-                  <Text style={styles.clipDesc} numberOfLines={2}>{item.description}</Text>
-                  <View style={styles.clipStats}>
-                    <Text style={styles.clipStat}>⬇ {item.downloads.toLocaleString()}</Text>
-                    <Text style={styles.clipStat}>❤️ {item.likes.toLocaleString()}</Text>
-                    <Text style={styles.clipStat}>💬 {item.comments.length}</Text>
-                    <Text style={styles.clipStat}>⏱ {item.duration}</Text>
-                  </View>
-                </View>
+                <Ionicons
+                  name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+                  size={20}
+                  color="#8B5CF6"
+                />
               </TouchableOpacity>
-            ))
+            )}
+          </View>
+
+          {loading ? (
+            <>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </>
+          ) : error ? (
+            <View style={styles.empty}>
+              <Ionicons name="warning-outline" size={32} color="#555" />
+              <Text style={styles.emptyText}>⚠️ {error}</Text>
+              <TouchableOpacity style={styles.retryBtn} onPress={loadClips}>
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : clips.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>🎤</Text>
+              <Text style={styles.emptyText}>No clips of {artist} yet.</Text>
+              <Text style={styles.emptySubText}>Been to one of their shows? Upload the first one. 🎤</Text>
+            </View>
+          ) : viewMode === 'grid' ? (
+            <FlatList
+              data={clips}
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              scrollEnabled={false}
+              columnWrapperStyle={styles.gridRow}
+              renderItem={renderGridCard}
+            />
+          ) : (
+            clips.map(renderClipCard)
           )}
         </View>
+
+
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D0D' },
+  container: { flex: 1, backgroundColor: '#000000' },
   hero: {
     alignItems: 'center',
     paddingTop: 24,
@@ -175,6 +479,128 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   clipCount: { fontSize: 13, color: '#8B5CF6', marginTop: 4, fontWeight: '600' },
+  followBtn: {
+    marginTop: 14,
+    paddingHorizontal: 28,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#8B5CF6',
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  followBtnActive: {
+    backgroundColor: '#8B5CF6',
+    borderColor: '#8B5CF6',
+  },
+  followBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#8B5CF6',
+  },
+  followBtnTextActive: {
+    color: '#fff',
+  },
+  notifyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#111',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#222',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 10,
+    width: '100%',
+  },
+  notifyLabel: {
+    color: '#aaa',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  claimSection: {
+    width: '100%',
+    alignItems: 'center',
+    marginTop: 14,
+    gap: 8,
+    backgroundColor: '#111',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#8B5CF633',
+    padding: 14,
+  },
+  verifiedArtistBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#1a1228',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#8B5CF655',
+  },
+  verifiedArtistText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8B5CF6',
+  },
+  artistBio: {
+    fontSize: 13,
+    color: '#aaa',
+    textAlign: 'center',
+    lineHeight: 19,
+  },
+  socialLinks: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  socialBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#1a1a1a',
+    borderWidth: 1,
+    borderColor: '#222',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  claimBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#8B5CF644',
+    backgroundColor: '#1a1228',
+  },
+  claimBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
+  pendingClaimBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#1a1500',
+    borderWidth: 1,
+    borderColor: '#FBBF2433',
+  },
+  pendingClaimText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FBBF24',
+  },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -192,12 +618,71 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 11, color: '#555', marginTop: 2 },
   statDivider: { width: 1, height: 32, backgroundColor: '#2a2a2a' },
   section: { paddingHorizontal: 16, marginBottom: 24 },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 12,
   },
+  viewToggleBtn: {
+    padding: 6,
+    backgroundColor: 'rgba(139,92,246,0.15)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.3)',
+  },
+  gridRow: {
+    gap: 8,
+    marginBottom: 8,
+  },
+  gridCard: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: '#222',
+    marginBottom: 0,
+  },
+  gridThumb: {
+    backgroundColor: '#1a1a1a',
+  },
+  gridInfo: {
+    padding: 8,
+  },
+  gridArtist: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  gridFestival: {
+    fontSize: 11,
+    color: '#8B5CF6',
+    marginTop: 2,
+  },
+  gigsSection: {
+    marginHorizontal: 16, marginBottom: 16,
+    backgroundColor: '#111', borderRadius: 14,
+    borderWidth: 1, borderColor: '#1e1e1e',
+    overflow: 'hidden',
+  },
+  gigsSectionTitle: {
+    fontSize: 13, fontWeight: '700', color: '#8B5CF6',
+    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 8,
+    letterSpacing: 0.5,
+  },
+  gigRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderTopWidth: 1, borderTopColor: '#1a1a1a',
+  },
+  gigInfo: { flex: 1 },
+  gigName: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  gigMeta: { fontSize: 12, color: '#555', marginTop: 2 },
   festivalChips: { gap: 8, paddingBottom: 4 },
   chip: {
     backgroundColor: 'rgba(139,92,246,0.15)',
@@ -218,12 +703,27 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   thumb: { width: 110, height: 82, backgroundColor: '#1a1a1a' },
+  thumbPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   clipInfo: { flex: 1, padding: 12 },
   clipFestival: { fontSize: 13, fontWeight: '700', color: '#8B5CF6' },
   clipMeta: { fontSize: 11, color: '#555', marginTop: 2 },
   clipDesc: { fontSize: 12, color: '#888', marginTop: 4, lineHeight: 17 },
   clipStats: { flexDirection: 'row', gap: 10, marginTop: 6 },
   clipStat: { fontSize: 11, color: '#444' },
-  empty: { padding: 24, alignItems: 'center' },
-  emptyText: { color: '#555', fontSize: 14, textAlign: 'center' },
+  empty: { padding: 36, alignItems: 'center', gap: 8 },
+  emptyEmoji: { fontSize: 40, marginBottom: 4 },
+  emptyText: { color: '#555', fontSize: 15, textAlign: 'center', fontWeight: '600' },
+  emptySubText: { color: '#444', fontSize: 13, textAlign: 'center' },
+  retryBtn: {
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#8B5CF6',
+  },
+  retryText: { color: '#8B5CF6', fontWeight: '700' },
 });

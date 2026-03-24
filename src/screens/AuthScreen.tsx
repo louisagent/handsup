@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,245 +8,389 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
+  ActivityIndicator,
+  Image,
+  StatusBar,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { signIn, signUp } from '../services/auth';
+import { Profile } from '../types';
 
-type Mode = 'login' | 'signup';
+type Mode = 'signin' | 'signup';
 
 interface AuthScreenProps {
-  onAuth: (user: { email: string; username: string }) => void;
+  onAuth: (user: Profile) => void;
 }
 
 export default function AuthScreen({ onAuth }: AuthScreenProps) {
-  const [mode, setMode] = useState<Mode>('login');
+  const [mode, setMode] = useState<Mode>('signin');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Focus state for border highlight
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const usernameRef = useRef<TextInput>(null);
+
+  const switchMode = (newMode: Mode) => {
+    setMode(newMode);
+    setError(null);
+    setEmail('');
+    setUsername('');
+    setPassword('');
+  };
 
   const handleSubmit = async () => {
+    setError(null);
+
     if (!email || !password) {
-      Alert.alert('Missing info', 'Please fill in email and password.');
+      setError('Please fill in your email/username and password.');
       return;
     }
     if (mode === 'signup' && !username) {
-      Alert.alert('Missing info', 'Please choose a username.');
+      setError('Please choose a username.');
       return;
     }
 
     setLoading(true);
-    // Simulate async auth — replace with Supabase call
-    setTimeout(() => {
+    try {
+      let profile: Profile;
+      if (mode === 'signin') {
+        // If input looks like an email use it directly, otherwise look up email by username
+        const isEmail = email.includes('@');
+        let signInEmail = email.trim();
+
+        if (!isEmail) {
+          // Username entered — look up their email via secure RPC
+          const { getEmailByUsername } = await import('../services/auth');
+          const foundEmail = await getEmailByUsername(email.trim());
+          if (!foundEmail) {
+            setError('No account found with that username.');
+            setLoading(false);
+            return;
+          }
+          signInEmail = foundEmail;
+        }
+        profile = await signIn(signInEmail, password);
+      } else {
+        profile = await signUp(email, password, username);
+      }
+      onAuth(profile);
+    } catch (err: any) {
+      setError(err?.message ?? 'Something went wrong. Please try again.');
+    } finally {
       setLoading(false);
-      onAuth({ email, username: username || email.split('@')[0] });
-    }, 1000);
+    }
   };
+
+  const inputStyle = (field: string) => [
+    styles.input,
+    focusedField === field && styles.inputFocused,
+  ];
 
   return (
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Logo */}
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Logo block ── */}
         <View style={styles.logoBlock}>
-          <Text style={styles.logoEmoji}>🙌</Text>
-          <Text style={styles.logoText}>handsup</Text>
-          <Text style={styles.logoTagline}>
-            {mode === 'login' ? 'Welcome back' : 'Join the community'}
-          </Text>
+          <Image
+              source={require('../../assets/logo-primary-source.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+
+          <Text style={styles.logoTagline}>feel it now. find it later.</Text>
         </View>
 
-        {/* Tab toggle */}
-        <View style={styles.toggle}>
+        {/* ── Tab switcher ── */}
+        <View style={styles.tabSwitcher}>
           <TouchableOpacity
-            style={[styles.toggleBtn, mode === 'login' && styles.toggleBtnActive]}
-            onPress={() => setMode('login')}
+            style={[styles.tabBtn, mode === 'signin' && styles.tabBtnActive]}
+            onPress={() => switchMode('signin')}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.toggleText, mode === 'login' && styles.toggleTextActive]}>
-              Log in
+            <Text style={[styles.tabText, mode === 'signin' && styles.tabTextActive]}>
+              Sign In
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.toggleBtn, mode === 'signup' && styles.toggleBtnActive]}
-            onPress={() => setMode('signup')}
+            style={[styles.tabBtn, mode === 'signup' && styles.tabBtnActive]}
+            onPress={() => switchMode('signup')}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.toggleText, mode === 'signup' && styles.toggleTextActive]}>
-              Sign up
+            <Text style={[styles.tabText, mode === 'signup' && styles.tabTextActive]}>
+              Sign Up
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Form */}
+        {/* ── Form ── */}
         <View style={styles.form}>
-          <Text style={styles.label}>Email</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="you@email.com"
-            placeholderTextColor="#444"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-
+          {/* Username (sign up only) */}
           {mode === 'signup' && (
-            <>
-              <Text style={styles.label}>Username</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="@yourname"
-                placeholderTextColor="#444"
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </>
+            <TextInput
+              ref={usernameRef}
+              style={inputStyle('username')}
+              placeholder="Username"
+              placeholderTextColor="#555"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => emailRef.current?.focus()}
+              onFocus={() => setFocusedField('username')}
+              onBlur={() => setFocusedField(null)}
+            />
           )}
 
-          <Text style={styles.label}>Password</Text>
+          {/* Email or Username */}
           <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor="#444"
+            ref={emailRef}
+            style={inputStyle('email')}
+            placeholder={mode === 'signin' ? 'Email or username' : 'Email'}
+            placeholderTextColor="#555"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType={mode === 'signin' ? 'default' : 'email-address'}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            onFocus={() => setFocusedField('email')}
+            onBlur={() => setFocusedField(null)}
+          />
+
+          {/* Password */}
+          <TextInput
+            ref={passwordRef}
+            style={inputStyle('password')}
+            placeholder="Password"
+            placeholderTextColor="#555"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
+            onFocus={() => setFocusedField('password')}
+            onBlur={() => setFocusedField(null)}
           />
 
-          {mode === 'login' && (
-            <TouchableOpacity style={styles.forgotBtn}>
+          {/* Error message */}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          {/* Forgot password */}
+          {mode === 'signin' && (
+            <TouchableOpacity style={styles.forgotBtn} activeOpacity={0.7}>
               <Text style={styles.forgotText}>Forgot password?</Text>
             </TouchableOpacity>
           )}
 
+          {/* Submit button */}
           <TouchableOpacity
-            style={[styles.submitBtn, loading && styles.submitBtnLoading]}
             onPress={handleSubmit}
             disabled={loading}
+            activeOpacity={0.85}
+            style={styles.submitWrapper}
           >
-            <Text style={styles.submitText}>
-              {loading ? 'Just a sec...' : mode === 'login' ? 'Log in' : 'Create account'}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Social auth placeholders */}
-          <TouchableOpacity style={styles.socialBtn}>
-            <Text style={styles.socialIcon}>🍎</Text>
-            <Text style={styles.socialText}>Continue with Apple</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.socialBtn}>
-            <Text style={styles.socialIcon}>G</Text>
-            <Text style={styles.socialText}>Continue with Google</Text>
+            <LinearGradient
+              colors={['#9F6EFF', '#8B5CF6', '#7C3AED']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.submitBtn}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.submitText}>
+                  {mode === 'signin' ? 'Sign In' : 'Create Account'}
+                </Text>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        {/* Switch mode */}
-        <View style={styles.switchRow}>
-          <Text style={styles.switchText}>
-            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-          </Text>
-          <TouchableOpacity onPress={() => setMode(mode === 'login' ? 'signup' : 'login')}>
-            <Text style={styles.switchLink}>
-              {mode === 'login' ? 'Sign up' : 'Log in'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={styles.terms}>
-          By continuing, you agree to our{' '}
-          <Text style={styles.termsLink}>Terms</Text>
-          {' '}and{' '}
-          <Text style={styles.termsLink}>Privacy Policy</Text>
+        {/* ── Terms ── */}
+        <Text style={styles.termsText}>
+          By continuing you agree to our Terms of Service
         </Text>
+
+        {/* ── Skip (testing only — remove before shipping) ── */}
+        <TouchableOpacity
+          style={styles.skipBtn}
+          activeOpacity={0.6}
+          onPress={() =>
+            onAuth({
+              id: 'guest',
+              username: 'guest',
+              display_name: 'Guest',
+              is_verified: false,
+              total_uploads: 0,
+              total_downloads: 0,
+              reputation_score: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            } as any)
+          }
+        >
+          <Text style={styles.skipText}>Skip for now → (testing only)</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D0D' },
-  content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
-  logoBlock: { alignItems: 'center', marginBottom: 36 },
-  logoEmoji: { fontSize: 52 },
-  logoText: { fontSize: 32, fontWeight: '900', color: '#fff', marginTop: 8, letterSpacing: -1 },
-  logoTagline: { fontSize: 15, color: '#666', marginTop: 6 },
-  toggle: {
-    flexDirection: 'row',
-    backgroundColor: '#161616',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#222',
-    marginBottom: 28,
-    padding: 4,
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
   },
-  toggleBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 9 },
-  toggleBtnActive: { backgroundColor: '#8B5CF6' },
-  toggleText: { fontSize: 15, fontWeight: '700', color: '#555' },
-  toggleTextActive: { color: '#fff' },
-  form: { gap: 6 },
-  label: { color: '#aaa', fontSize: 13, fontWeight: '600', marginTop: 8 },
+  content: {
+    paddingHorizontal: 24,
+    paddingTop: 72,
+    paddingBottom: 48,
+    flexGrow: 1,
+  },
+
+  // Logo
+  logoBlock: {
+    alignItems: 'center',
+    marginBottom: 44,
+  },
+
+  logoImage: {
+    width: 240,
+    height: 100,
+  },
+  logoTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  logoTagline: {
+    fontSize: 14,
+    color: '#8B5CF6',
+    fontWeight: '500',
+    letterSpacing: 0.3,
+  },
+
+  // Tab switcher
+  tabSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#111111',
+    borderRadius: 100,
+    padding: 4,
+    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
+  },
+  tabBtn: {
+    flex: 1,
+    paddingVertical: 11,
+    alignItems: 'center',
+    borderRadius: 100,
+  },
+  tabBtnActive: {
+    backgroundColor: '#8B5CF6',
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#444',
+  },
+  tabTextActive: {
+    color: '#ffffff',
+  },
+
+  // Form
+  form: {
+    gap: 12,
+  },
   input: {
     backgroundColor: '#161616',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    color: '#fff',
-    fontSize: 15,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    marginBottom: 4,
-  },
-  forgotBtn: { alignSelf: 'flex-end', marginBottom: 4 },
-  forgotText: { color: '#8B5CF6', fontSize: 13, fontWeight: '600' },
-  submitBtn: {
-    backgroundColor: '#8B5CF6',
     borderRadius: 14,
+    paddingHorizontal: 18,
     paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 12,
+    color: '#ffffff',
+    fontSize: 16,
+    borderWidth: 1.5,
+    borderColor: '#222222',
   },
-  submitBtnLoading: { opacity: 0.6 },
-  submitText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginVertical: 20,
+  inputFocused: {
+    borderColor: '#8B5CF6',
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#1a1a1a' },
-  dividerText: { color: '#444', fontSize: 13 },
-  socialBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#161616',
+
+  // Error
+  errorText: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: -4,
+  },
+
+  // Forgot password
+  forgotBtn: {
+    alignSelf: 'flex-end',
+    marginTop: -4,
+  },
+  forgotText: {
+    color: '#888888',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // Submit
+  submitWrapper: {
+    marginTop: 8,
     borderRadius: 14,
-    paddingVertical: 14,
-    borderWidth: 1,
-    borderColor: '#2a2a2a',
-    marginBottom: 10,
+    overflow: 'hidden',
   },
-  socialIcon: { fontSize: 18, fontWeight: '800', color: '#fff' },
-  socialText: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  switchRow: {
-    flexDirection: 'row',
+  submitBtn: {
+    paddingVertical: 17,
+    alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
   },
-  switchText: { color: '#555', fontSize: 14 },
-  switchLink: { color: '#8B5CF6', fontSize: 14, fontWeight: '700' },
-  terms: { textAlign: 'center', color: '#444', fontSize: 12, marginTop: 16, lineHeight: 18 },
-  termsLink: { color: '#666' },
+  submitText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+
+  // Terms
+  termsText: {
+    textAlign: 'center',
+    color: '#3a3a3a',
+    fontSize: 11,
+    marginTop: 32,
+    lineHeight: 17,
+  },
+
+  // Skip (testing only)
+  skipBtn: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingVertical: 8,
+  },
+  skipText: {
+    color: '#2a2a2a',
+    fontSize: 12,
+    fontWeight: '500',
+  },
 });

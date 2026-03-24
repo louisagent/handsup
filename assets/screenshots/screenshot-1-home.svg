@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844">
+  <defs>
+    <radialGradient id="brandGlow" cx="50%" cy="100%" r="70%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0D0D0D" stop-opacity="1"/>
+    </radialGradient>
+    <linearGradient id="cardGradient" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1228"/>
+      <stop offset="100%" stop-color="#0D0D0D"/>
+    </linearGradient>
+    <linearGradient id="thumbOverlay" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(0,0,0,0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.7)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Phone screen background -->
+  <rect width="390" height="844" fill="#0D0D0D"/>
+  <!-- Brand glow wash -->
+  <rect width="390" height="844" fill="url(#brandGlow)"/>
+
+  <!-- ── STATUS BAR ── -->
+  <rect width="390" height="44" fill="#0D0D0D"/>
+  <text x="20" y="30" fill="white" font-size="13" font-weight="600" font-family="sans-serif">9:41</text>
+  <!-- Signal / wifi / battery (simplified) -->
+  <rect x="318" y="20" width="42" height="12" rx="3" fill="none" stroke="white" stroke-width="1.5"/>
+  <rect x="319" y="21" width="28" height="10" rx="2" fill="white"/>
+  <rect x="361" y="23" width="3" height="6" rx="1" fill="white"/>
+  <circle cx="298" cy="26" r="5" fill="none" stroke="white" stroke-width="1.5"/>
+  <circle cx="298" cy="26" r="2" fill="white"/>
+  <!-- 3 signal bars -->
+  <rect x="276" y="22" width="3" height="8" rx="1" fill="white"/>
+  <rect x="281" y="24" width="3" height="6" rx="1" fill="white"/>
+  <rect x="286" y="26" width="3" height="4" rx="1" fill="white"/>
+
+  <!-- ── HEADLINE OVERLAY (top section) ── -->
+  <rect width="390" height="170" fill="#0D0D0D"/>
+  <!-- Logo / wordmark area -->
+  <text x="20" y="68" fill="white" font-size="18" font-weight="800" font-family="sans-serif" letter-spacing="1">🙌 handsup</text>
+  <!-- Main headline -->
+  <text x="20" y="102" fill="white" font-size="28" font-weight="800" font-family="sans-serif">Every set. Every stage.</text>
+  <text x="20" y="134" fill="white" font-size="28" font-weight="800" font-family="sans-serif">Every moment.</text>
+  <text x="20" y="160" fill="#A78BFA" font-size="13" font-family="sans-serif">Discover and download live music clips.</text>
+
+  <!-- ── APP UI AREA ── -->
+
+  <!-- Section label -->
+  <text x="20" y="195" fill="#AAAAAA" font-size="11" font-weight="600" font-family="sans-serif" letter-spacing="2">TRENDING CLIPS</text>
+
+  <!-- ── CLIP CARD 1 ── -->
+  <rect x="16" y="204" width="358" height="178" rx="14" fill="#161616" stroke="#222222" stroke-width="1"/>
+  <!-- Thumbnail area -->
+  <rect x="16" y="204" width="358" height="118" rx="14" fill="url(#cardGradient)"/>
+  <!-- Simulated stage lights / thumbnail fill -->
+  <rect x="16" y="204" width="358" height="118" rx="14" fill="#1a1228"/>
+  <ellipse cx="195" cy="250" rx="80" ry="40" fill="#8B5CF6" fill-opacity="0.2"/>
+  <ellipse cx="120" cy="260" rx="50" ry="30" fill="#7C3AED" fill-opacity="0.15"/>
+  <!-- Thumbnail overlay gradient -->
+  <rect x="16" y="204" width="358" height="118" rx="14" fill="url(#thumbOverlay)"/>
+  <!-- Play button -->
+  <circle cx="195" cy="258" r="20" fill="rgba(0,0,0,0.5)"/>
+  <polygon points="188,248 188,268 210,258" fill="white"/>
+  <!-- Card info -->
+  <text x="36" y="342" fill="white" font-size="16" font-weight="700" font-family="sans-serif">Tame Impala</text>
+  <text x="36" y="362" fill="#8B5CF6" font-size="12" font-weight="600" font-family="sans-serif">Laneway Festival · Sydney</text>
+  <!-- Duration badge -->
+  <rect x="302" y="332" width="58" height="20" rx="6" fill="#222222"/>
+  <text x="311" y="346" fill="#AAAAAA" font-size="11" font-family="sans-serif">3:42 🎬</text>
+
+  <!-- ── CLIP CARD 2 ── -->
+  <rect x="16" y="396" width="358" height="178" rx="14" fill="#161616" stroke="#222222" stroke-width="1"/>
+  <!-- Thumbnail area -->
+  <rect x="16" y="396" width="358" height="118" rx="14" fill="#12101a"/>
+  <ellipse cx="150" cy="440" rx="70" ry="35" fill="#7C3AED" fill-opacity="0.25"/>
+  <ellipse cx="260" cy="450" rx="60" ry="25" fill="#8B5CF6" fill-opacity="0.15"/>
+  <rect x="16" y="396" width="358" height="118" rx="14" fill="url(#thumbOverlay)"/>
+  <!-- Play button -->
+  <circle cx="195" cy="450" r="20" fill="rgba(0,0,0,0.5)"/>
+  <polygon points="188,440 188,460 210,450" fill="white"/>
+  <!-- Card info -->
+  <text x="36" y="534" fill="white" font-size="16" font-weight="700" font-family="sans-serif">Fisher</text>
+  <text x="36" y="554" fill="#8B5CF6" font-size="12" font-weight="600" font-family="sans-serif">Splendour in the Grass · Byron Bay</text>
+  <!-- Duration badge -->
+  <rect x="302" y="524" width="58" height="20" rx="6" fill="#222222"/>
+  <text x="311" y="538" fill="#AAAAAA" font-size="11" font-family="sans-serif">5:17 🎬</text>
+
+  <!-- ── CLIP CARD 3 (partial, shows more content) ── -->
+  <rect x="16" y="588" width="358" height="80" rx="14" fill="#161616" stroke="#222222" stroke-width="1"/>
+  <rect x="16" y="588" width="100" height="80" rx="8" fill="#1a1228"/>
+  <ellipse cx="66" cy="628" rx="30" ry="20" fill="#8B5CF6" fill-opacity="0.3"/>
+  <circle cx="66" cy="628" r="12" fill="rgba(0,0,0,0.5)"/>
+  <polygon points="62,622 62,634 72,628" fill="white"/>
+  <text x="128" y="618" fill="white" font-size="14" font-weight="700" font-family="sans-serif">Chris Liebing</text>
+  <text x="128" y="638" fill="#8B5CF6" font-size="12" font-family="sans-serif">Pitch Festival · Berlin</text>
+  <text x="128" y="656" fill="#555555" font-size="11" font-family="sans-serif">2 days ago</text>
+
+  <!-- ── BOTTOM TAB BAR ── -->
+  <rect x="0" y="780" width="390" height="64" fill="#0D0D0D"/>
+  <rect x="0" y="780" width="390" height="1" fill="#222222"/>
+
+  <!-- Home tab (active) -->
+  <text x="28" y="808" font-size="18" font-family="sans-serif">🏠</text>
+  <text x="22" y="832" fill="#8B5CF6" font-size="9" font-weight="600" font-family="sans-serif" letter-spacing="0.5">HOME</text>
+
+  <!-- Search tab -->
+  <text x="107" y="808" font-size="18" font-family="sans-serif">🔍</text>
+  <text x="101" y="832" fill="#555555" font-size="9" font-family="sans-serif" letter-spacing="0.5">SEARCH</text>
+
+  <!-- Upload tab (centre, prominent) -->
+  <circle cx="195" cy="800" r="26" fill="#8B5CF6"/>
+  <text x="183" y="807" font-size="20" font-family="sans-serif">🙌</text>
+
+  <!-- Events tab -->
+  <text x="262" y="808" font-size="18" font-family="sans-serif">🎪</text>
+  <text x="257" y="832" fill="#555555" font-size="9" font-family="sans-serif" letter-spacing="0.5">EVENTS</text>
+
+  <!-- Profile tab -->
+  <text x="340" y="808" font-size="18" font-family="sans-serif">👤</text>
+  <text x="333" y="832" fill="#555555" font-size="9" font-family="sans-serif" letter-spacing="0.5">PROFILE</text>
+
+  <!-- Safe area indicator -->
+  <rect x="150" y="836" width="90" height="4" rx="2" fill="#333333"/>
+</svg>

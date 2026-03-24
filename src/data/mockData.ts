@@ -14,6 +14,9 @@ export interface VideoClip {
   duration: string;
   thumbnail: string;
   created_at: string; // ISO timestamp for heat score
+  resolution?: string;   // e.g. "1080p", "4K" — triggers HD badge when set
+  /** ISO date string — when the signed URL expires. Triggers expiry warning badge when within 7 days. */
+  expires_at?: string;
 }
 
 export interface Comment {
@@ -46,6 +49,8 @@ export const mockVideos: VideoClip[] = [
     duration: '3:42',
     thumbnail: 'https://picsum.photos/seed/tame/400/225',
     created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    resolution: '1080p',
+    expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // ⚠️ expires in 2 days
   },
   {
     id: '2',
@@ -66,6 +71,7 @@ export const mockVideos: VideoClip[] = [
     duration: '2:58',
     thumbnail: 'https://picsum.photos/seed/flume/400/225',
     created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+    expires_at: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // ⚠️ expires in 5 days
   },
   {
     id: '3',
@@ -88,6 +94,8 @@ export const mockVideos: VideoClip[] = [
     duration: '4:15',
     thumbnail: 'https://picsum.photos/seed/fred/400/225',
     created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
+    resolution: '4K',
+    expires_at: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(), // ✅ expires in 10 days — no warning
   },
   {
     id: '4',

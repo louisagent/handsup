@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hands Up — Live Music Clips</title>
+
+  <!-- Dynamic OG tags — filled by JS -->
+  <meta property="og:type" content="video.other" />
+  <meta property="og:site_name" content="Hands Up" />
+  <meta property="og:title" id="og-title" content="Hands Up — Live Music Clips" />
+  <meta property="og:description" id="og-description" content="Watch live music clips from festivals worldwide." />
+  <meta property="og:image" id="og-image" content="https://handsuplive.com/og-image.jpg" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" id="tw-title" content="Hands Up — Live Music Clips" />
+  <meta name="twitter:image" id="tw-image" content="https://handsuplive.com/og-image.jpg" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Header */
+    .header {
+      width: 100%;
+      max-width: 600px;
+      padding: 20px 20px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand { font-size: 20px; font-weight: 900; letter-spacing: 3px; color: #fff; }
+    .brand-sub { font-size: 12px; color: #8B5CF6; font-weight: 600; }
+
+    /* Main content */
+    .content {
+      width: 100%;
+      max-width: 600px;
+      padding: 20px;
+      flex: 1;
+    }
+
+    /* Video player */
+    .video-container {
+      width: 100%;
+      background: #111;
+      border-radius: 16px;
+      overflow: hidden;
+      aspect-ratio: 16/9;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .video-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
+    .video-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #111;
+      color: #444;
+      font-size: 14px;
+    }
+
+    /* Clip info */
+    .clip-info { margin-bottom: 20px; }
+    .clip-artist { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+    .clip-festival { font-size: 15px; font-weight: 700; color: #8B5CF6; margin-bottom: 10px; }
+    .clip-meta { display: flex; gap: 16px; color: #555; font-size: 13px; flex-wrap: wrap; }
+    .clip-meta span { display: flex; align-items: center; gap: 4px; }
+
+    /* Stats */
+    .stats {
+      display: flex;
+      gap: 20px;
+      background: #111;
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      border: 1px solid #1e1e1e;
+    }
+    .stat { flex: 1; text-align: center; }
+    .stat-val { font-size: 20px; font-weight: 800; color: #fff; }
+    .stat-label { font-size: 11px; color: #555; margin-top: 3px; }
+
+    /* Download button */
+    .download-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: #8B5CF6;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      padding: 16px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      margin-bottom: 12px;
+      transition: opacity 0.2s;
+    }
+    .download-btn:hover { opacity: 0.85; }
+
+    /* App CTA */
+    .app-cta {
+      background: #0d0020;
+      border-radius: 16px;
+      border: 1px solid #8B5CF633;
+      padding: 20px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .app-cta h3 { font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+    .app-cta p { font-size: 14px; color: #666; margin-bottom: 16px; line-height: 1.5; }
+    .app-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+    .app-btn {
+      background: #fff;
+      color: #000;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .app-btn.android { background: #1e1e1e; color: #fff; border: 1px solid #333; }
+
+    /* Loading state */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 50vh;
+      gap: 16px;
+      color: #555;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #222;
+      border-top-color: #8B5CF6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Error */
+    .error {
+      text-align: center;
+      padding: 40px 20px;
+      color: #555;
+    }
+    .error h2 { font-size: 20px; color: #fff; margin-bottom: 8px; }
+
+    /* Footer */
+    .footer {
+      width: 100%;
+      max-width: 600px;
+      padding: 20px;
+      text-align: center;
+      color: #333;
+      font-size: 12px;
+    }
+    .footer a { color: #8B5CF6; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="brand">HANDS UP</div>
+      <div class="brand-sub">Live Music Clips</div>
+    </div>
+  </div>
+
+  <div class="content" id="app">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div>Loading clip...</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="https://handsuplive.com">handsuplive.com</a> · Feel it now. Find it later.
+  </div>
+
+  <script>
+    // Supabase config (public anon key — read-only)
+    const SUPABASE_URL = 'https://ulvhjkkyxzybahcqcvaf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVsdmhqa2t5eHp5YmFoY3FjdmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODAwNDUsImV4cCI6MjA4OTM1NjA0NX0.-J1UxXrhIsEfqoINZRs5S1pNYfHQ53WG2K5y5mIfuTU';
+
+    // Get clip ID from URL path: /clip/:id
+    function getClipId() {
+      const path = window.location.pathname;
+      const match = path.match(/\/clip\/([^/?#]+)/);
+      return match ? match[1] : null;
+    }
+
+    // Format numbers
+    function fmt(n) {
+      if (!n) return '—';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+      return n.toString();
+    }
+
+    // Escape HTML to prevent XSS
+    function esc(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // Supabase REST fetch (read-only with anon key)
+    async function fetchClip(id) {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/clips?id=eq.${encodeURIComponent(id)}&select=*,uploader:profiles!uploader_id(username)&limit=1`,
+        {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          }
+        }
+      );
+      if (!res.ok) throw new Error('Failed to fetch');
+      const data = await res.json();
+      return data[0] ?? null;
+    }
+
+    function renderClip(clip) {
+      // Update OG tags
+      const title = `${clip.artist} at ${clip.festival_name} — Hands Up`;
+      const desc = `Watch ${clip.artist} live at ${clip.festival_name}, ${clip.location}. Download and share live music clips on Hands Up.`;
+      document.title = title;
+      document.getElementById('og-title')?.setAttribute('content', title);
+      document.getElementById('og-description')?.setAttribute('content', desc);
+      document.getElementById('tw-title')?.setAttribute('content', title);
+      if (clip.thumbnail_url) {
+        document.getElementById('og-image')?.setAttribute('content', clip.thumbnail_url);
+        document.getElementById('tw-image')?.setAttribute('content', clip.thumbnail_url);
+      }
+
+      const app = document.getElementById('app');
+      app.innerHTML = `
+        <div class="video-container">
+          ${clip.video_url
+            ? `<video controls playsinline preload="metadata" poster="${esc(clip.thumbnail_url)}">
+                <source src="${esc(clip.video_url)}" type="video/mp4" />
+               </video>`
+            : '<div class="video-placeholder">Video unavailable</div>'
+          }
+        </div>
+
+        <div class="clip-info">
+          <div class="clip-artist">${esc(clip.artist)}</div>
+          <div class="clip-festival">${esc(clip.festival_name)}</div>
+          <div class="clip-meta">
+            ${clip.location ? `<span>📍 ${esc(clip.location)}</span>` : ''}
+            ${clip.clip_date ? `<span>📅 ${esc(clip.clip_date)}</span>` : ''}
+            ${clip.uploader?.username ? `<span>@${esc(clip.uploader.username)}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-val">${fmt(clip.view_count)}</div>
+            <div class="stat-label">Views</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val">${fmt(clip.download_count)}</div>
+            <div class="stat-label">Downloads</div>
+          </div>
+        </div>
+
+        ${clip.video_url ? `
+        <a href="${esc(clip.video_url)}" download class="download-btn">
+          ⬇️ Download Clip
+        </a>` : ''}
+
+        <div class="app-cta">
+          <h3>Discover more on Hands Up 🙌</h3>
+          <p>Upload and discover live music clips from festivals worldwide. Find moments from your favourite sets.</p>
+          <div class="app-buttons">
+            <a href="https://apps.apple.com/app/hands-up" class="app-btn">🍎 App Store</a>
+            <a href="https://play.google.com/store/apps/hands-up" class="app-btn android">🤖 Google Play</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderError() {
+      document.getElementById('app').innerHTML = `
+        <div class="error">
+          <h2>Clip not found</h2>
+          <p>This clip may have been removed or the link is incorrect.</p>
+          <br/>
+          <a href="https://handsuplive.com" style="color:#8B5CF6">Browse Hands Up →</a>
+        </div>
+      `;
+    }
+
+    async function main() {
+      const id = getClipId();
+      if (!id) { renderError(); return; }
+
+      try {
+        const clip = await fetchClip(id);
+        if (!clip) { renderError(); return; }
+        renderClip(clip);
+      } catch {
+        renderError();
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>

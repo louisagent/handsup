@@ -3,11 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Handsup – Be there. We'll film it.</title>
-  <meta name="description" content="A platform for music festival goers to share and download video clips from live events. Put your phone down — someone else got the shot." />
-  <meta property="og:title" content="Handsup – Be there. We'll film it." />
-  <meta property="og:description" content="Browse and download video clips from your favourite festivals. Put your phone down." />
-  <meta property="og:type" content="website" />
+  <title>handsup – Feel it now. Find it later.</title>
+  <meta name="description" content="Put your phone down. Put your hands up. Feel it now. Find it later. Festival footage from the crowd, for the crowd." />
+  <meta property="og:type" content="video.other" />
+  <meta property="og:site_name" content="Hands Up" />
+  <meta property="og:title" content="Hands Up - Live Music Clips" />
+  <meta property="og:description" content="Watch and share live music clips from festivals worldwide. Discover artists, sets and moments from your favourite events." />
+  <meta property="og:image" content="https://handsuplive.com/og-image.jpg" />
+  <meta property="og:url" content="https://handsuplive.com" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Hands Up - Live Music Clips" />
+  <meta name="twitter:description" content="Watch and share live music clips from festivals worldwide." />
+  <meta name="twitter:image" content="https://handsuplive.com/og-image.jpg" />
+  <!--
+    Clip page routing: /clip/:id is served by clip.html.
+    Configure your web server with a rewrite rule — see web/DEPLOYMENT.md.
+    Example (Vercel): { "source": "/clip/:id", "destination": "/clip.html" }
+  -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
   <style>
@@ -304,6 +316,7 @@
   <div class="nav-links">
     <a href="#how">How it works</a>
     <a href="#festivals">For Festivals</a>
+    <a href="partner.html">Partner Portal</a>
     <a href="#early-access" class="nav-cta">Get early access</a>
   </div>
 </nav>
@@ -312,15 +325,18 @@
 <section class="hero">
   <div class="hero-glow"></div>
   <div class="hero-emoji">🙌</div>
-  <h1>Be there.<br><span class="purple">We'll film it.</span></h1>
+  <h1>Put your phone down.<br><span class="purple">Put your hands up.</span></h1>
   <p class="hero-sub">
-    A platform for music festival goers to share and download video clips from live events — so you can put your phone down and actually enjoy the show.
+    Feel it now. Find it later.
+  </p>
+  <p style="color: var(--muted); font-size: 16px; margin-top: 12px; max-width: 480px;">
+    Festival footage from the crowd, for the crowd. Someone else got the shot — go find it.
   </p>
   <div class="hero-actions">
     <a href="#early-access" class="btn-primary">Get early access</a>
     <a href="#how" class="btn-secondary">See how it works</a>
   </div>
-  <p class="hero-tagline">Hands up. Phone down.</p>
+  <p class="hero-tagline">Feel it now. Find it later. ⤵</p>
 </section>
 
 <!-- PROBLEM -->
@@ -434,7 +450,7 @@
       <span class="perk">Post-event content library</span>
       <span class="perk">Audience engagement data</span>
     </div>
-    <a href="mailto:hello@handsup.app" class="btn-primary">Partner with us</a>
+    <a href="mailto:hello@handsuplive.com" class="btn-primary">Partner with us</a>
   </div>
 </section>
 
@@ -460,8 +476,10 @@
 <!-- FOOTER -->
 <footer>
   <div class="footer-logo">🙌 hands<span>up</span></div>
-  <p style="margin-top: 8px;">Be there. We'll film it.</p>
+  <p style="margin-top: 8px;">Feel it now. Find it later.</p>
   <p style="margin-top: 20px; display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;">
+    <a href="partner.html" style="color: #8B5CF6; font-size: 13px; text-decoration: none; font-weight: 600;">Partner Portal</a>
+    <a href="qr-generator.html" style="color: #8B5CF6; font-size: 13px; text-decoration: none; font-weight: 600;">QR Generator</a>
     <a href="/privacy" style="color: #555; font-size: 13px; text-decoration: none;">Privacy Policy</a>
     <a href="/terms" style="color: #555; font-size: 13px; text-decoration: none;">Terms of Service</a>
     <a href="/dmca" style="color: #555; font-size: 13px; text-decoration: none;">Copyright / DMCA</a>

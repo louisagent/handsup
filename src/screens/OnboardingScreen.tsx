@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,61 +6,32 @@ import {
   TouchableOpacity,
   Dimensions,
   ScrollView,
-  Animated,
+  Image,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
-
-const slides = [
-  {
-    emoji: '🎪',
-    title: 'You paid for the experience.',
-    subtitle: 'Not to spend it staring at a screen.',
-    body: 'Handsup exists so you can put your phone down and actually be there.',
-    bg: '#0D0D0D',
-  },
-  {
-    emoji: '🔍',
-    title: 'Find the moment\nyou were part of.',
-    subtitle: 'Search by artist, festival, city, or date.',
-    body: 'Every set from every stage — uploaded by people who were right there with you.',
-    bg: '#0D0D0D',
-  },
-  {
-    emoji: '⬇',
-    title: 'Download it.\nIt\'s yours.',
-    subtitle: 'Save straight to your camera roll.',
-    body: 'No watermark. No paywall. Just the clip, on your phone, ready to share.',
-    bg: '#0D0D0D',
-  },
-  {
-    emoji: '🙌',
-    title: 'Film once.\nShare forever.',
-    subtitle: 'If you do film something great — upload it.',
-    body: 'Every clip you upload is a memory for thousands of people who were there.',
-    bg: '#0D0D0D',
-  },
-];
 
 interface OnboardingScreenProps {
   onDone: () => void;
 }
 
 export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
-  const [current, setCurrent] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
-  const goTo = (index: number) => {
-    scrollRef.current?.scrollTo({ x: index * width, animated: true });
-    setCurrent(index);
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+    setCurrentIndex(idx);
   };
 
-  const handleNext = () => {
-    if (current < slides.length - 1) {
-      goTo(current + 1);
-    } else {
-      handleDone();
+  const goNext = () => {
+    if (currentIndex < 2) {
+      scrollRef.current?.scrollTo({ x: (currentIndex + 1) * width, animated: true });
     }
   };
 
@@ -73,49 +44,94 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
 
   return (
     <View style={styles.container}>
+      {/* Skip button — only on slides 1 and 2 */}
+      {currentIndex < 2 && (
+        <TouchableOpacity
+          style={styles.skipBtn}
+          onPress={handleDone}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.skipText}>Skip</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Slides */}
       <ScrollView
         ref={scrollRef}
         horizontal
         pagingEnabled
-        scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={(e) => {
-          const index = Math.round(e.nativeEvent.contentOffset.x / width);
-          setCurrent(index);
-        }}
+        onMomentumScrollEnd={handleScroll}
+        scrollEventThrottle={16}
+        style={styles.scrollView}
       >
-        {slides.map((slide, i) => (
-          <View key={i} style={[styles.slide, { width }]}>
-            <View style={styles.glow} />
-            <Text style={styles.emoji}>{slide.emoji}</Text>
-            <Text style={styles.title}>{slide.title}</Text>
-            <Text style={styles.subtitle}>{slide.subtitle}</Text>
-            <Text style={styles.body}>{slide.body}</Text>
-          </View>
-        ))}
+        {/* Slide 1 — Logo */}
+        <View style={[styles.slide, { width }]}>
+          <View style={styles.glowBehind} />
+          <Image
+            source={require('../../assets/logo-primary-source.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+
+          <Text style={styles.slideTagline}>be there. we'll film it.</Text>
+        </View>
+
+        {/* Slide 2 — Film the moment */}
+        <View style={[styles.slide, { width }]}>
+          <View style={styles.glowBehind} />
+          <Ionicons name="videocam" size={80} color="#8B5CF6" style={styles.slideIcon} />
+          <Text style={styles.slideTitle}>Film the moment</Text>
+          <Text style={styles.slideSubtitle}>
+            Upload clips from any festival, any artist, any night. 60 seconds of pure energy.
+          </Text>
+        </View>
+
+        {/* Slide 3 — Find your crew */}
+        <View style={[styles.slide, { width }]}>
+          <View style={styles.glowBehind} />
+          <Ionicons name="people" size={80} color="#8B5CF6" style={styles.slideIcon} />
+          <Text style={styles.slideTitle}>Find your crew</Text>
+          <Text style={styles.slideSubtitle}>
+            Follow friends, create groups, build your festival archive together.
+          </Text>
+        </View>
       </ScrollView>
 
-      {/* Dots */}
-      <View style={styles.dots}>
-        {slides.map((_, i) => (
-          <TouchableOpacity key={i} onPress={() => goTo(i)}>
-            <View style={[styles.dot, i === current && styles.dotActive]} />
-          </TouchableOpacity>
-        ))}
-      </View>
+      {/* Bottom controls */}
+      <View style={styles.bottomArea}>
+        {/* Pagination dots */}
+        <View style={styles.dotsRow}>
+          {[0, 1, 2].map((i) => (
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === currentIndex ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
 
-      {/* Buttons */}
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.btnPrimary} onPress={handleNext}>
-          <Text style={styles.btnPrimaryText}>
-            {current < slides.length - 1 ? 'Next' : "Let's go 🙌"}
-          </Text>
-        </TouchableOpacity>
-        {current < slides.length - 1 && (
-          <TouchableOpacity style={styles.btnSkip} onPress={handleDone}>
-            <Text style={styles.btnSkipText}>Skip</Text>
-          </TouchableOpacity>
-        )}
+        {/* Buttons */}
+        <View style={styles.btnArea}>
+          {currentIndex < 2 ? (
+            <TouchableOpacity style={styles.nextBtn} onPress={goNext} activeOpacity={0.8}>
+              <Text style={styles.nextBtnText}>Next</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity onPress={handleDone} activeOpacity={0.88} style={styles.getStartedWrapper}>
+              <LinearGradient
+                colors={['#8B5CF6', '#6D28D9']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.getStartedBtn}
+              >
+                <Text style={styles.getStartedText}>Get Started 🙌</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -124,10 +140,10 @@ export default function OnboardingScreen({ onDone }: OnboardingScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0D0D',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 60,
+    backgroundColor: '#000000',
+  },
+  scrollView: {
+    flex: 1,
   },
   slide: {
     flex: 1,
@@ -135,80 +151,110 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 36,
     paddingTop: 80,
+    paddingBottom: 40,
   },
-  glow: {
+  glowBehind: {
     position: 'absolute',
     width: 300,
     height: 300,
     borderRadius: 150,
     backgroundColor: 'rgba(139,92,246,0.12)',
     top: '20%',
+    alignSelf: 'center',
   },
-  emoji: {
-    fontSize: 80,
-    marginBottom: 32,
+  logoImage: {
+    width: 180,
+    height: 180,
+    marginBottom: 28,
   },
-  title: {
+  slideIcon: {
+    marginBottom: 28,
+  },
+  slideTitle: {
     fontSize: 36,
     fontWeight: '900',
-    color: '#fff',
+    color: '#ffffff',
     textAlign: 'center',
-    lineHeight: 42,
     letterSpacing: -1,
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  subtitle: {
-    fontSize: 16,
+  slideTagline: {
+    fontSize: 18,
     fontWeight: '600',
     color: '#8B5CF6',
     textAlign: 'center',
-    marginBottom: 16,
-    lineHeight: 22,
+    letterSpacing: 0.3,
   },
-  body: {
-    fontSize: 15,
-    color: '#777',
+  slideSubtitle: {
+    fontSize: 16,
+    color: '#999999',
     textAlign: 'center',
-    lineHeight: 22,
-    maxWidth: 280,
+    lineHeight: 24,
+    maxWidth: 300,
   },
-  dots: {
+  bottomArea: {
+    paddingBottom: 56,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  dotsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 32,
+    marginBottom: 28,
   },
   dot: {
-    width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#2a2a2a',
   },
   dotActive: {
-    backgroundColor: '#8B5CF6',
     width: 24,
-  },
-  actions: {
-    width: '100%',
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  btnPrimary: {
     backgroundColor: '#8B5CF6',
+  },
+  dotInactive: {
+    width: 8,
+    backgroundColor: '#333333',
+  },
+  btnArea: {
+    width: '100%',
+  },
+  nextBtn: {
+    borderWidth: 1.5,
+    borderColor: '#8B5CF6',
     borderRadius: 16,
-    paddingVertical: 18,
+    paddingVertical: 17,
     alignItems: 'center',
   },
-  btnPrimaryText: {
-    color: '#fff',
+  nextBtnText: {
+    color: '#8B5CF6',
     fontSize: 17,
     fontWeight: '700',
+    letterSpacing: -0.2,
   },
-  btnSkip: {
+  getStartedWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  getStartedBtn: {
+    paddingVertical: 18,
     alignItems: 'center',
-    paddingVertical: 10,
+    borderRadius: 16,
   },
-  btnSkipText: {
-    color: '#444',
+  getStartedText: {
+    color: '#ffffff',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  skipBtn: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    paddingTop: 60,
+    paddingRight: 20,
+    zIndex: 10,
+  },
+  skipText: {
+    color: '#555',
     fontSize: 14,
     fontWeight: '600',
   },

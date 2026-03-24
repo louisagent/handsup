@@ -21,8 +21,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { RouteProp } from '@react-navigation/native';
 import { Clip } from '../types';
-import { trackView, recordDownload, getClipsByEvent, searchClips, likeClip, unlikeClip, hasLiked, getLikeCount, getReactions, addReaction, removeReaction, getMyReactions } from '../services/clips';
-import { scheduleLocalNotification } from '../services/notifications';
+import { trackView, recordDownload, getClipsByEvent, searchClips, likeClip, unlikeClip, hasLiked, getLikeCount, getReactions, addReaction, removeReaction, getMyReactions, getClipCountForSet } from '../services/clips';
+import { repostClip, undoRepost, hasReposted, getRepostCount } from '../services/repostsService';
+import { scheduleLocalNotification, notifyLike, notifyComment, notifyFollow } from '../services/notifications';
 import { Clip as ClipType } from '../types';
 import { trackEvent } from '../services/analytics';
 import {
@@ -36,13 +37,17 @@ import { splitByHashtagsAndMentions } from '../utils/tags';
 import TrackIdRow from '../components/TrackIdRow';
 import * as Haptics from 'expo-haptics';
 import * as Sharing from 'expo-sharing';
+import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../services/supabase';
 import { isFollowing, followUser, unfollowUser } from '../services/follows';
+import { isModerator } from '../services/moderator';
 import { getComments, postComment, Comment } from '../services/comments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEY_AUTOPLAY, STORAGE_KEY_DATA_SAVER } from './SettingsScreen';
 import * as MediaLibrary from 'expo-media-library';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import * as StoreReview from 'expo-store-review';
+import { incrementChallengeProgress } from '../services/challenges';
 
 type VideoDetailRouteParams = {
   VideoDetail: { video: Clip };
@@ -161,10 +166,13 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
   const [durationMillis, setDurationMillis] = useState(0);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
+  const [reposted, setReposted] = useState(false);
+  const [repostCount, setRepostCount] = useState(0);
   const [downloaded, setDownloaded] = useState(false);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isModUser, setIsModUser] = useState(false);
   const saved = isSaved(video.id);
 
   // Comments state
@@ -185,6 +193,9 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
   // Festival related clips state
   const [festivalClips, setFestivalClips] = useState<ClipType[]>([]);
   const [festivalClipsLoading, setFestivalClipsLoading] = useState(true);
+
+  // Scarcity indicator
+  const [setClipCount, setSetClipCount] = useState<number | null>(null);
 
   // View count animation
   const [displayViewCount, setDisplayViewCount] = useState(0);
@@ -249,6 +260,8 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
           setFollowing(result);
         }
       }
+      // Check moderator status
+      isModerator().then(setIsModUser).catch(() => {});
       // Load like state and count regardless of auth
       const [likedState, count] = await Promise.all([
         hasLiked(video.id).catch(() => false),
@@ -256,6 +269,13 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       ]);
       setLiked(likedState);
       setLikeCount(count);
+      // Load repost state and count
+      const [repostedState, rCount] = await Promise.all([
+        user ? hasReposted(user.id, video.id).catch(() => false) : Promise.resolve(false),
+        getRepostCount(video.id).catch(() => 0),
+      ]);
+      setReposted(repostedState);
+      setRepostCount(rCount);
     })();
   }, [video.id, video.uploader_id]);
 
@@ -407,7 +427,10 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
         setFestivalClipsLoading(false);
       }
     })();
-  }, [video.id, video.event_id, video.festival_name]);
+
+    // Load scarcity count for this artist + festival combo
+    getClipCountForSet(video.artist, video.festival_name).then(setSetClipCount).catch(() => {});
+  }, [video.id, video.event_id, video.festival_name, video.artist]);
 
   const handlePlaybackStatusUpdate = (status: AVPlaybackStatus) => {
     if (!status.isLoaded) {
@@ -467,6 +490,52 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
     showControls();
   };
 
+  const handleGenerateThumbnail = async () => {
+    if (!video.video_url) return;
+    try {
+      const timestamps = [2000, 5000, 1000, 10000, 3000];
+      let thumbUri: string | null = null;
+      for (const time of timestamps) {
+        try {
+          const result = await VideoThumbnails.getThumbnailAsync(video.video_url, { time });
+          if (result.uri) { thumbUri = result.uri; break; }
+        } catch { continue; }
+      }
+      if (!thumbUri) {
+        Alert.alert('Could not generate thumbnail', 'Try again later.');
+        return;
+      }
+
+      // Upload thumbnail to Supabase Storage
+      const fileName = `thumb_${video.id}_${Date.now()}.jpg`;
+      const response = await fetch(thumbUri);
+      const blob = await response.blob();
+      const { data: session } = await supabase.auth.getSession();
+      const supabaseUrl = (supabase as any).supabaseUrl as string;
+
+      const uploadResp = await fetch(`${supabaseUrl}/storage/v1/object/thumbnails/${fileName}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.session?.access_token}`,
+          'Content-Type': 'image/jpeg',
+          'x-upsert': 'true',
+        },
+        body: blob,
+      });
+
+      if (uploadResp.ok) {
+        const thumbUrl = `${supabaseUrl}/storage/v1/object/public/thumbnails/${fileName}`;
+        await supabase.from('clips').update({ thumbnail_url: thumbUrl }).eq('id', video.id);
+        setVideo((prev) => ({ ...prev, thumbnail_url: thumbUrl }));
+        Alert.alert('✅ Cover image added!');
+      } else {
+        Alert.alert('Upload failed', 'Could not save the thumbnail.');
+      }
+    } catch {
+      Alert.alert('Error', 'Could not generate thumbnail.');
+    }
+  };
+
   const handleDownload = async () => {
     if (downloaded) return;
     try {
@@ -484,6 +553,8 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       await recordDownload(video.id);
       setDownloaded(true);
       trackEvent('clip_download', { clip_id: video.id }).catch(() => {});
+      import('../services/xp').then(({ awardXP }) => awardXP('download')).catch(() => {});
+      incrementChallengeProgress('download').catch(() => {});
 
       // Download milestone notification (every 5 downloads)
       const newCount = (video.download_count ?? 0) + 1;
@@ -534,6 +605,11 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       if (nowLiked) {
         await likeClip(video.id);
         trackEvent('clip_like', { clip_id: video.id }).catch(() => {});
+        import('../services/xp').then(({ awardXP }) => awardXP('like')).catch(() => {});
+        incrementChallengeProgress('like').catch(() => {});
+        if (video.uploader_id) {
+          notifyLike(video.id, video.artist, video.uploader_id).catch(() => {});
+        }
       } else {
         await unlikeClip(video.id);
       }
@@ -541,6 +617,32 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       // revert on error
       setLiked(!nowLiked);
       setLikeCount((prev) => (nowLiked ? Math.max(0, prev - 1) : prev + 1));
+    }
+  };
+
+  const handleRepost = async () => {
+    if (!isLoggedIn || !currentUserId) {
+      Alert.alert('Sign in to repost');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const nowReposted = !reposted;
+    // Optimistic UI update
+    setReposted(nowReposted);
+    setRepostCount((prev) => (nowReposted ? prev + 1 : Math.max(0, prev - 1)));
+    try {
+      if (nowReposted) {
+        await repostClip(currentUserId, video.id);
+        trackEvent('clip_repost', { clip_id: video.id }).catch(() => {});
+        import('../services/xp').then(({ awardXP }) => awardXP('repost')).catch(() => {});
+        incrementChallengeProgress('repost').catch(() => {});
+      } else {
+        await undoRepost(currentUserId, video.id);
+      }
+    } catch {
+      // Revert on error
+      setReposted(!nowReposted);
+      setRepostCount((prev) => (nowReposted ? Math.max(0, prev - 1) : prev + 1));
     }
   };
 
@@ -554,6 +656,9 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       } else {
         await followUser(video.uploader_id);
         setFollowing(true);
+        notifyFollow(video.uploader_id).catch(() => {});
+        import('../services/xp').then(({ awardXP }) => awardXP('follow')).catch(() => {});
+        incrementChallengeProgress('follow').catch(() => {});
       }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
@@ -563,7 +668,8 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
     }
   };
 
-  const deepLinkUrl = `handsuplate://clip/${video.id}`;
+  const universalLink = `https://handsuplive.com/clip/${video.id}`;
+  const deepLinkUrl = `handsup://clip/${video.id}`;
 
   const handleSaveLongPress = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -621,12 +727,33 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
 
   const handleShare = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const shareMessage = `Check out ${video.artist} at ${video.festival_name} on handsuplive.com 🙌\n\n${deepLinkUrl}`;
-    try {
-      await Share.share({ message: shareMessage, url: deepLinkUrl });
-    } catch {
-      Alert.alert('Share clip', deepLinkUrl, [{ text: 'OK' }]);
-    }
+    Alert.alert(
+      'Share Clip',
+      `${video.artist} at ${video.festival_name}`,
+      [
+        {
+          text: '📤 Share...',
+          onPress: async () => {
+            const shareMessage = `🙌 ${video.artist} at ${video.festival_name}\n\nWatch on Hands Up 👇\n${universalLink}`;
+            try {
+              await Share.share({
+                message: shareMessage,
+                url: universalLink,
+                title: `${video.artist} at ${video.festival_name}`,
+              });
+            } catch { /* ignore */ }
+          },
+        },
+        {
+          text: '🔗 Copy Link',
+          onPress: async () => {
+            await Clipboard.setStringAsync(universalLink);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const handleShareToInstagramStories = async () => {
@@ -654,6 +781,11 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       setComments((prev) => [...prev, newComment]);
       setCommentText('');
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      import('../services/xp').then(({ awardXP }) => awardXP('comment')).catch(() => {});
+      incrementChallengeProgress('comment').catch(() => {});
+      if (video.uploader_id) {
+        notifyComment(video.id, video.artist, video.uploader_id, trimmed).catch(() => {});
+      }
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'Could not post comment.');
     } finally {
@@ -818,6 +950,18 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
           )}
         </View>
 
+        {/* Add thumbnail button for uploader when thumbnail_url is null */}
+        {!video.thumbnail_url && currentUserId === video.uploader_id && (
+          <TouchableOpacity
+            style={styles.addThumbnailBtn}
+            onPress={handleGenerateThumbnail}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="image-outline" size={16} color="#8B5CF6" />
+            <Text style={styles.addThumbnailText}>Add Cover Image</Text>
+          </TouchableOpacity>
+        )}
+
         {/* ── Body ── */}
         <View style={styles.body}>
 
@@ -831,14 +975,14 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
                   onPress={() => video.track_streaming_url ? Linking.openURL(video.track_streaming_url) : null}
                   activeOpacity={video.track_streaming_url ? 0.7 : 1}
                 >
-                  <Ionicons name="musical-notes-outline" size={10} color="#8B5CF6" />
+                  <Text style={styles.trackIdChipLabel}>ID: </Text>
                   <Text style={styles.trackIdChipText} numberOfLines={1}>
                     {video.track_artist} – {video.track_name}
                   </Text>
                 </TouchableOpacity>
               ) : (
                 <TouchableOpacity style={styles.trackIdChipUnknown} activeOpacity={0.7}>
-                  <Text style={styles.trackIdChipUnknownText}>Track ID</Text>
+                  <Text style={styles.trackIdChipUnknownText}>ID: Unknown</Text>
                 </TouchableOpacity>
               )}
               {video.resolution ? (
@@ -880,7 +1024,7 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
                   <Text
                     key={i}
                     style={styles.hashtag}
-                    onPress={() => navigation.navigate('Search', { initialQuery: segment })}
+                    onPress={() => navigation.navigate('Hashtag', { tag: segment.slice(1) })}
                   >
                     {segment}
                   </Text>
@@ -918,6 +1062,20 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
             }}
           />
 
+          {/* ── Scarcity badge ── */}
+          {setClipCount !== null && setClipCount <= 3 && (
+            <View style={styles.scarcityBadge}>
+              <Text style={styles.scarcityEmoji}>
+                {setClipCount === 1 ? '🥇' : '💎'}
+              </Text>
+              <Text style={styles.scarcityText}>
+                {setClipCount === 1
+                  ? 'First upload from this set'
+                  : `Only ${setClipCount} clips from this performance`}
+              </Text>
+            </View>
+          )}
+
           {/* ── Instagram Stories Button — prominent, above stats ── */}
           <TouchableOpacity
             style={styles.instagramBtn}
@@ -949,6 +1107,13 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
                 {video.download_count > 0 ? video.download_count.toLocaleString() : '—'}
               </Text>
               <Text style={styles.statLabel}>Downloads</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.stat}>
+              <Text style={[styles.statValue, repostCount > 0 && { color: '#10B981' }]}>
+                {repostCount > 0 ? repostCount.toLocaleString() : '—'}
+              </Text>
+              <Text style={styles.statLabel}>🔁 Reposts</Text>
             </View>
             {video.resolution && (
               <>
@@ -1041,6 +1206,17 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              style={[styles.actionBtn, reposted && styles.actionBtnReposted]}
+              onPress={handleRepost}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="repeat" size={22} color={reposted ? '#10B981' : '#888'} />
+              <Text style={[styles.actionLabel, reposted && styles.actionLabelReposted]}>
+                {repostCount > 0 ? repostCount.toLocaleString() : 'Repost'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
               style={[styles.actionBtn, downloaded && styles.actionBtnDownloaded]}
               onPress={handleDownload}
               disabled={downloaded}
@@ -1067,6 +1243,40 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
             <Ionicons name="flag-outline" size={13} color="#444" />
             <Text style={styles.reportLinkText}>Report</Text>
           </TouchableOpacity>
+
+          {/* Moderator remove button */}
+          {isModUser && (
+            <TouchableOpacity
+              style={styles.modRemoveBtn}
+              onPress={() => {
+                Alert.alert(
+                  '🛡️ Remove Clip',
+                  `Remove this clip by "${video.artist}"? This cannot be undone.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Remove Clip',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          const { modDeleteClip } = await import('../services/moderator');
+                          await modDeleteClip(video.id);
+                          Alert.alert('Removed', 'Clip has been removed.');
+                          navigation.goBack();
+                        } catch {
+                          Alert.alert('Error', 'Could not remove this clip.');
+                        }
+                      },
+                    },
+                  ]
+                );
+              }}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="shield" size={13} color="#EF4444" />
+              <Text style={styles.modRemoveBtnText}>Mod: Remove Clip</Text>
+            </TouchableOpacity>
+          )}
 
           {/* ── More from this festival ── */}
           {video.festival_name && (
@@ -1115,6 +1325,29 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
               )}
             </View>
           )}
+
+          {/* Were you there? Upload prompt */}
+          <View style={styles.uploadPromptCard}>
+            <View style={styles.uploadPromptLeft}>
+              <Text style={styles.uploadPromptEmoji}>🎬</Text>
+              <View>
+                <Text style={styles.uploadPromptTitle}>Were you there?</Text>
+                <Text style={styles.uploadPromptSub}>
+                  Upload your {video.festival_name} clip
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.uploadPromptBtn}
+              onPress={() => navigation.navigate('Upload', {
+                prefillFestival: video.festival_name,
+                prefillLocation: video.location,
+              })}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.uploadPromptBtnText}>Upload</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* ── Comments Section ── */}
           <View style={styles.commentsSection}>
@@ -1397,6 +1630,12 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     maxWidth: 180,
   },
+  trackIdChipLabel: {
+    color: '#8B5CF6',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
   trackIdChipText: {
     color: '#A78BFA',
     fontSize: 10,
@@ -1573,6 +1812,11 @@ const styles = StyleSheet.create({
   actionLabelLiked: { color: '#EF4444' },
   actionLabelSaved: { color: '#8B5CF6' },
   actionLabelDownloaded: { color: '#4ade80' },
+  actionBtnReposted: {
+    borderColor: '#10B98144',
+    backgroundColor: '#0a1a12',
+  },
+  actionLabelReposted: { color: '#10B981' },
 
   // Comments
   commentsSection: { marginTop: 4 },
@@ -1822,6 +2066,97 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#444',
     fontWeight: '500',
+  },
+  modRemoveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginBottom: 20,
+    marginTop: -8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: '#1a0808',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EF444433',
+    alignSelf: 'center',
+  },
+  modRemoveBtnText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '700',
+  },
+
+  // Add thumbnail button
+  addThumbnailBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: '#1a1228',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#8B5CF644',
+    alignSelf: 'center',
+    marginTop: 8,
+  },
+  addThumbnailText: {
+    fontSize: 13,
+    color: '#8B5CF6',
+    fontWeight: '600',
+  },
+
+  // Upload prompt
+  uploadPromptCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#111',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  uploadPromptLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  uploadPromptEmoji: { fontSize: 28 },
+  uploadPromptTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  uploadPromptSub: { fontSize: 12, color: '#555', marginTop: 2 },
+  uploadPromptBtn: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  uploadPromptBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+
+  // Scarcity badge
+  scarcityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#1a1108',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FBBF2433',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
+  scarcityEmoji: { fontSize: 16 },
+  scarcityText: {
+    fontSize: 13,
+    color: '#FBBF24',
+    fontWeight: '700',
   },
 
   // Instagram

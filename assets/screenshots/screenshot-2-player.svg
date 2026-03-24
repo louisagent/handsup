@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 844">
+  <defs>
+    <linearGradient id="videoGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a0a30"/>
+      <stop offset="50%" stop-color="#0d0820"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+    <radialGradient id="stageLight" cx="50%" cy="60%" r="60%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#0D0D0D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="overlayTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(0,0,0,0.85)"/>
+      <stop offset="30%" stop-color="rgba(0,0,0,0)"/>
+    </linearGradient>
+    <linearGradient id="overlayBottom" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(0,0,0,0)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,0.9)"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full-screen video background -->
+  <rect width="390" height="844" fill="url(#videoGrad)"/>
+  <!-- Stage atmosphere -->
+  <rect width="390" height="844" fill="url(#stageLight)"/>
+  <!-- Simulated crowd silhouettes -->
+  <ellipse cx="60" cy="760" rx="45" ry="20" fill="#0a0015"/>
+  <ellipse cx="140" cy="755" rx="40" ry="18" fill="#0a0015"/>
+  <ellipse cx="220" cy="758" rx="50" ry="22" fill="#0a0015"/>
+  <ellipse cx="320" cy="752" rx="55" ry="20" fill="#0a0015"/>
+  <!-- Stage lights -->
+  <line x1="80" y1="300" x2="130" y2="600" stroke="#8B5CF6" stroke-width="30" stroke-opacity="0.08"/>
+  <line x1="200" y1="280" x2="200" y2="620" stroke="#A78BFA" stroke-width="40" stroke-opacity="0.06"/>
+  <line x1="310" y1="300" x2="260" y2="600" stroke="#7C3AED" stroke-width="30" stroke-opacity="0.08"/>
+
+  <!-- ── HEADLINE OVERLAY (top section) ── -->
+  <rect width="390" height="170" fill="url(#overlayTop)"/>
+  <!-- Status bar -->
+  <text x="20" y="30" fill="white" font-size="13" font-weight="600" font-family="sans-serif">9:41</text>
+  <rect x="318" y="20" width="42" height="12" rx="3" fill="none" stroke="white" stroke-width="1.5" stroke-opacity="0.7"/>
+  <rect x="319" y="21" width="28" height="10" rx="2" fill="white" fill-opacity="0.7"/>
+  <rect x="361" y="23" width="3" height="6" rx="1" fill="white" fill-opacity="0.7"/>
+
+  <!-- Headline text -->
+  <text x="20" y="78" fill="white" font-size="28" font-weight="800" font-family="sans-serif">Watch. Download.</text>
+  <text x="20" y="110" fill="white" font-size="28" font-weight="800" font-family="sans-serif">It's yours.</text>
+  <text x="20" y="145" fill="#A78BFA" font-size="13" font-family="sans-serif">HD clips saved to your camera roll. No watermark.</text>
+
+  <!-- ── VIDEO PLAYER CONTROLS (bottom overlay) ── -->
+  <rect width="390" height="220" x="0" y="624" fill="url(#overlayBottom)"/>
+
+  <!-- Artist info -->
+  <text x="20" y="668" fill="white" font-size="22" font-weight="800" font-family="sans-serif">Tame Impala</text>
+  <text x="20" y="693" fill="#A78BFA" font-size="14" font-weight="600" font-family="sans-serif">Laneway Festival · Sydney · Jan 2026</text>
+
+  <!-- Progress bar -->
+  <rect x="20" y="712" width="350" height="3" rx="2" fill="#333333"/>
+  <rect x="20" y="712" width="168" height="3" rx="2" fill="#8B5CF6"/>
+  <circle cx="188" cy="713" r="6" fill="white"/>
+  <!-- Time labels -->
+  <text x="20" y="730" fill="#AAAAAA" font-size="11" font-family="sans-serif">1:52</text>
+  <text x="350" y="730" fill="#AAAAAA" font-size="11" font-family="sans-serif" text-anchor="end">3:42</text>
+
+  <!-- Playback controls -->
+  <!-- Rewind -->
+  <polygon points="55,760 55,790 35,775" fill="white" fill-opacity="0.8"/>
+  <polygon points="70,760 70,790 50,775" fill="white" fill-opacity="0.8"/>
+  <!-- Play/Pause (pause state — currently playing) -->
+  <rect x="170" y="755" width="14" height="36" rx="3" fill="white"/>
+  <rect x="192" y="755" width="14" height="36" rx="3" fill="white"/>
+  <!-- Fast forward -->
+  <polygon points="320,760 320,790 340,775" fill="white" fill-opacity="0.8"/>
+  <polygon points="335,760 335,790 355,775" fill="white" fill-opacity="0.8"/>
+
+  <!-- ── DOWNLOAD BUTTON (hero element — highlighted) ── -->
+  <rect x="16" y="806" width="240" height="50" rx="14" fill="#8B5CF6"/>
+  <!-- Glow effect under download button -->
+  <rect x="16" y="806" width="240" height="50" rx="14" fill="#8B5CF6" filter="url(#glow)"/>
+  <text x="80" y="837" fill="white" font-size="16" font-weight="700" font-family="sans-serif">⬇ Download to camera roll</text>
+
+  <!-- Share button -->
+  <rect x="270" y="806" width="104" height="50" rx="14" fill="#222222"/>
+  <text x="305" y="837" fill="white" font-size="16" font-family="sans-serif">⬆ Share</text>
+
+  <!-- Safe area -->
+  <rect x="150" y="836" width="90" height="4" rx="2" fill="rgba(255,255,255,0.15)" y="0" transform="translate(0,0)"/>
+</svg>

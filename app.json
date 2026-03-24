@@ -1,30 +1,85 @@
 {
   "expo": {
-    "name": "handsup",
+    "name": "handsup.live",
     "slug": "handsup",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "scheme": "handsup",
+    "userInterfaceStyle": "dark",
+    "privacy": "public",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
-      "supportsTablet": true
+      "icon": "./assets/icon.png",
+      "supportsTablet": false,
+      "bundleIdentifier": "com.handsuplate.app",
+      "buildNumber": "1",
+      "associatedDomains": ["applinks:handsuplive.com"],
+      "infoPlist": {
+        "NSCameraUsageDescription": "handsup needs camera access to record festival clips.",
+        "NSPhotoLibraryUsageDescription": "handsup needs access to your photo library to select videos.",
+        "NSPhotoLibraryAddUsageDescription": "handsup saves festival clips to your camera roll.",
+        "NSMicrophoneUsageDescription": "handsup needs microphone access to record festival clips with audio.",
+        "NSLocationWhenInUseUsageDescription": "handsup uses your location to show nearby festivals."
+      }
     },
     "android": {
+      "package": "com.handsuplate.app",
+      "versionCode": 1,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "handsuplive.com",
+              "pathPrefix": "/clip"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a0a2e"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow handsup to access your photo library to select videos.",
+          "cameraPermission": "Allow handsup to use the camera to record festival clips.",
+          "microphonePermission": "Allow handsup to use the microphone to record festival clips with audio."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow handsup to save festival clips to your camera roll.",
+          "savePhotosPermission": "Allow handsup to save festival clips to your camera roll.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ]
+    ]
   }
 }

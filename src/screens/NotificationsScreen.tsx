@@ -1,118 +1,160 @@
-import React, { useState } from 'react';
+// ============================================================
+// Handsup — Notifications Screen (Real Data)
+// Reads from Supabase notifications table
+// ============================================================
+
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
+import { getNotifications, markAllRead, DbNotification } from '../services/notifications_db';
 
-interface Notification {
-  id: string;
-  type: 'new_clip' | 'trending' | 'festival' | 'upload' | 'system';
-  title: string;
-  body: string;
-  time: string;
-  read: boolean;
+// ── Helpers ────────────────────────────────────────────────
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' });
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'new_clip',
-    title: 'New Tame Impala clips',
-    body: '14 new clips just uploaded from Laneway Melbourne. Check them out.',
-    time: '2m ago',
-    read: false,
-  },
-  {
-    id: '2',
-    type: 'trending',
-    title: 'Trending right now 🔥',
-    body: 'Fred again.. at Field Day is blowing up — 800 downloads in the last hour.',
-    time: '18m ago',
-    read: false,
-  },
-  {
-    id: '3',
-    type: 'upload',
-    title: 'Your clip is taking off',
-    body: 'Your Flume upload has been downloaded 47 times today. 🙌',
-    time: '1h ago',
-    read: true,
-  },
-  {
-    id: '4',
-    type: 'festival',
-    title: 'Splendour in the Grass',
-    body: 'Clips from the weekend are live. 389 uploads from 3 stages.',
-    time: '3h ago',
-    read: true,
-  },
-  {
-    id: '5',
-    type: 'new_clip',
-    title: 'New Disclosure clips',
-    body: 'Someone uploaded 3 clips from the Glastonbury late night tent.',
-    time: '5h ago',
-    read: true,
-  },
-  {
-    id: '6',
-    type: 'system',
-    title: 'Welcome to Handsup 🙌',
-    body: 'You\'re part of the founding community. Hands up. Phone down.',
-    time: '2d ago',
-    read: true,
-  },
-];
+function notificationText(n: DbNotification): string {
+  const actor = n.actor?.username ? `@${n.actor.username}` : 'Someone';
+  switch (n.type) {
+    case 'new_follower':
+      return `${actor} started following you`;
+    case 'clip_liked':
+      return `${actor} liked your clip`;
+    case 'comment':
+      return `${actor} commented on your clip`;
+    case 'clip_downloaded':
+      return `${actor} downloaded your clip`;
+    default:
+      return `${actor} interacted with you`;
+  }
+}
 
-const typeIcon: Record<string, string> = {
-  new_clip: '🎥',
-  trending: '🔥',
-  festival: '🎪',
-  upload: '⬆',
-  system: '🙌',
-};
+function notificationIcon(type: string): string {
+  switch (type) {
+    case 'new_follower': return '👤';
+    case 'clip_liked':   return '❤️';
+    case 'comment':      return '💬';
+    case 'clip_downloaded': return '⬇️';
+    default:             return '🔔';
+  }
+}
 
-const typeColor: Record<string, string> = {
-  new_clip: '#8B5CF6',
-  trending: '#F59E0B',
-  festival: '#10B981',
-  upload: '#3B82F6',
-  system: '#8B5CF6',
-};
+function notificationColor(type: string): string {
+  switch (type) {
+    case 'new_follower':     return '#8B5CF6';
+    case 'clip_liked':       return '#EF4444';
+    case 'comment':          return '#3B82F6';
+    case 'clip_downloaded':  return '#10B981';
+    default:                 return '#8B5CF6';
+  }
+}
 
-const preferenceItems = [
-  { key: 'new_clips', label: 'New clips from artists I follow', default: true },
-  { key: 'trending', label: 'Trending clips & sets', default: true },
-  { key: 'festivals', label: 'Upcoming festival alerts', default: true },
-  { key: 'my_uploads', label: 'Activity on my uploads', default: true },
-  { key: 'weekly', label: 'Weekly digest', default: false },
-];
+// ── Row Component ──────────────────────────────────────────
+
+function NotifRow({ notif }: { notif: DbNotification }) {
+  const color = notificationColor(notif.type);
+  const text = notificationText(notif);
+
+  return (
+    <View style={[styles.item, !notif.read && styles.itemUnread]}>
+      {/* Purple left border for unread */}
+      {!notif.read && <View style={styles.unreadBar} />}
+
+      <View style={[styles.iconWrap, { backgroundColor: color + '22' }]}>
+        <Text style={styles.icon}>{notificationIcon(notif.type)}</Text>
+      </View>
+
+      <View style={styles.itemBody}>
+        <View style={styles.itemTop}>
+          <Text style={styles.itemText} numberOfLines={2}>{text}</Text>
+          <Text style={styles.itemTime}>{timeAgo(notif.created_at)}</Text>
+        </View>
+        {notif.clip && (
+          <Text style={styles.clipSubtext} numberOfLines={1}>
+            {notif.clip.artist} @ {notif.clip.festival_name}
+          </Text>
+        )}
+      </View>
+
+      {!notif.read && <View style={styles.unreadDot} />}
+    </View>
+  );
+}
+
+// ── Skeleton ───────────────────────────────────────────────
+
+function SkeletonRow() {
+  return (
+    <View style={styles.skeletonRow}>
+      <View style={styles.skeletonIcon} />
+      <View style={styles.skeletonBody}>
+        <View style={styles.skeletonLine} />
+        <View style={[styles.skeletonLine, { width: '60%' }]} />
+      </View>
+    </View>
+  );
+}
+
+// ── Main Screen ────────────────────────────────────────────
 
 export default function NotificationsScreen() {
-  const [notifications, setNotifications] = useState(mockNotifications);
-  const [showPrefs, setShowPrefs] = useState(false);
-  const [prefs, setPrefs] = useState<Record<string, boolean>>(
-    Object.fromEntries(preferenceItems.map((p) => [p.key, p.default]))
-  );
+  const [notifications, setNotifications] = useState<DbNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [markingRead, setMarkingRead] = useState(false);
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const data = await getNotifications();
+      setNotifications(data);
+    } catch {
+      // silently fail — show empty state
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => { loadNotifications(); }, [loadNotifications]);
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadNotifications();
+  };
+
+  const handleMarkAllRead = async () => {
+    setMarkingRead(true);
+    try {
+      await markAllRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch {
+      // silently fail
+    } finally {
+      setMarkingRead(false);
+    }
+  };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const markRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  };
-
   return (
     <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Notifications</Text>
@@ -120,75 +162,61 @@ export default function NotificationsScreen() {
             <Text style={styles.unreadBadge}>{unreadCount} unread</Text>
           )}
         </View>
-        <View style={styles.headerActions}>
-          {unreadCount > 0 && (
-            <TouchableOpacity onPress={markAllRead} style={styles.markAllBtn}>
+        {unreadCount > 0 && (
+          <TouchableOpacity
+            onPress={handleMarkAllRead}
+            style={styles.markAllBtn}
+            disabled={markingRead}
+            activeOpacity={0.8}
+          >
+            {markingRead ? (
+              <ActivityIndicator size="small" color="#aaa" />
+            ) : (
               <Text style={styles.markAllText}>Mark all read</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={() => setShowPrefs(!showPrefs)}>
-            <Text style={styles.prefIcon}>⚙️</Text>
+            )}
           </TouchableOpacity>
-        </View>
+        )}
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Preferences panel */}
-        {showPrefs && (
-          <View style={styles.prefsPanel}>
-            <Text style={styles.prefsTitle}>Notification preferences</Text>
-            {preferenceItems.map((item) => (
-              <View key={item.key} style={styles.prefRow}>
-                <Text style={styles.prefLabel}>{item.label}</Text>
-                <Switch
-                  value={prefs[item.key]}
-                  onValueChange={(val) =>
-                    setPrefs((prev) => ({ ...prev, [item.key]: val }))
-                  }
-                  trackColor={{ false: '#2a2a2a', true: '#8B5CF6' }}
-                  thumbColor="#fff"
-                />
-              </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#8B5CF6" colors={["#8B5CF6"]} />
+        }
+      >
+        {loading ? (
+          <View style={styles.list}>
+            {[0, 1, 2, 3, 4].map((i) => <SkeletonRow key={i} />)}
+          </View>
+        ) : notifications.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>🔔</Text>
+            <Text style={styles.emptyTitle}>Nothing yet.</Text>
+            <Text style={styles.emptySubtitle}>
+              Upload a clip and watch the reactions roll in. 🙌
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {notifications.map((n) => (
+              <NotifRow key={n.id} notif={n} />
             ))}
           </View>
         )}
 
-        {/* Notification list */}
-        <View style={styles.list}>
-          {notifications.map((n) => (
-            <TouchableOpacity
-              key={n.id}
-              style={[styles.item, !n.read && styles.itemUnread]}
-              onPress={() => markRead(n.id)}
-            >
-              <View
-                style={[
-                  styles.iconWrap,
-                  { backgroundColor: typeColor[n.type] + '22' },
-                ]}
-              >
-                <Text style={styles.icon}>{typeIcon[n.type]}</Text>
-              </View>
-              <View style={styles.itemBody}>
-                <View style={styles.itemTop}>
-                  <Text style={styles.itemTitle}>{n.title}</Text>
-                  <Text style={styles.itemTime}>{n.time}</Text>
-                </View>
-                <Text style={styles.itemText}>{n.body}</Text>
-              </View>
-              {!n.read && <View style={styles.unreadDot} />}
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.footer}>You're all caught up 🙌</Text>
+        {!loading && notifications.length > 0 && (
+          <Text style={styles.footer}>You're all caught up 🙌</Text>
+        )}
       </ScrollView>
     </View>
   );
 }
 
+// ── Styles ─────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0D0D0D' },
+  container: { flex: 1, backgroundColor: '#000000' },
+
   header: {
     paddingTop: 60,
     paddingHorizontal: 20,
@@ -201,44 +229,44 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 26, fontWeight: '800', color: '#fff' },
   unreadBadge: { fontSize: 13, color: '#8B5CF6', marginTop: 2, fontWeight: '600' },
-  headerActions: { flexDirection: 'row', gap: 12, alignItems: 'center' },
   markAllBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#333',
+    minWidth: 110,
+    alignItems: 'center',
   },
   markAllText: { color: '#aaa', fontSize: 12, fontWeight: '600' },
-  prefIcon: { fontSize: 22 },
-  prefsPanel: {
-    margin: 16,
-    backgroundColor: '#161616',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#222',
-  },
-  prefsTitle: { fontSize: 14, fontWeight: '700', color: '#fff', marginBottom: 16 },
-  prefRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-  },
-  prefLabel: { fontSize: 13, color: '#aaa', flex: 1, marginRight: 12 },
-  list: { padding: 16, gap: 2 },
+
+  list: { padding: 16, gap: 4 },
+
   item: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     padding: 14,
     borderRadius: 14,
     gap: 12,
     marginBottom: 4,
+    position: 'relative',
+    overflow: 'hidden',
+    backgroundColor: '#0a0a0a',
   },
-  itemUnread: { backgroundColor: '#161616', borderWidth: 1, borderColor: '#222' },
+  itemUnread: {
+    backgroundColor: '#120e1e',
+    borderWidth: 1,
+    borderColor: '#2a1a4a',
+  },
+  unreadBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 2,
+  },
   iconWrap: {
     width: 44,
     height: 44,
@@ -253,19 +281,75 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 4,
+    gap: 8,
   },
-  itemTitle: { fontSize: 14, fontWeight: '700', color: '#fff', flex: 1, marginRight: 8 },
-  itemTime: { fontSize: 11, color: '#555', flexShrink: 0 },
-  itemText: { fontSize: 13, color: '#888', lineHeight: 18 },
+  itemText: {
+    fontSize: 14,
+    color: '#ddd',
+    fontWeight: '500',
+    flex: 1,
+    lineHeight: 19,
+  },
+  itemTime: { fontSize: 11, color: '#555', flexShrink: 0, marginTop: 1 },
+  clipSubtext: {
+    fontSize: 12,
+    color: '#555',
+    marginTop: 3,
+  },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#8B5CF6',
-    marginTop: 4,
     flexShrink: 0,
   },
+
+  // Skeleton
+  skeletonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 14,
+    gap: 12,
+    marginBottom: 4,
+    backgroundColor: '#0a0a0a',
+  },
+  skeletonIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#1a1a1a',
+  },
+  skeletonBody: { flex: 1, gap: 8 },
+  skeletonLine: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#1a1a1a',
+    width: '85%',
+  },
+
+  // Empty
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 80,
+    paddingHorizontal: 40,
+    gap: 12,
+  },
+  emptyEmoji: { fontSize: 48 },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.3,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#555',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+
   footer: {
     textAlign: 'center',
     color: '#333',

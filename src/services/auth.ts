@@ -138,3 +138,10 @@ export async function resetPassword(email: string): Promise<void> {
   });
   if (error) throw error;
 }
+
+// Look up email by username via secure RPC function
+export async function getEmailByUsername(username: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('get_email_by_username', { p_username: username });
+  if (error || !data) return null;
+  return data as string;
+}

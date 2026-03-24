@@ -1,0 +1,26 @@
+-- ============================================================
+-- Handsup — Hashtag / Tag Support (MVP Note)
+-- ============================================================
+--
+-- The `clips` table already has a `description` field (TEXT).
+-- For MVP, hashtags are extracted CLIENT-SIDE from description text.
+--
+-- Example description: "Incredible set 🙌 #laneway #tamimpala #melbourne"
+--
+-- The extractHashtags() utility in src/utils/tags.ts handles parsing.
+-- Search works via ilike on the description field (case-insensitive):
+--
+--   .from('clips').select('*').ilike('description', '%#laneway%')
+--
+-- This is handled in SearchScreen when query starts with '#'.
+--
+-- NO SCHEMA CHANGE NEEDED FOR MVP.
+--
+-- Future enhancement (post-MVP): Add a `tags` TEXT[] column or a
+-- separate `clip_tags` junction table with a GIN index for
+-- full-text tag search performance at scale.
+--
+-- Example future schema:
+-- ALTER TABLE clips ADD COLUMN tags TEXT[] DEFAULT '{}';
+-- CREATE INDEX idx_clips_tags ON clips USING GIN(tags);
+-- ============================================================
