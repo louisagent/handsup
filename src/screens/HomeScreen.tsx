@@ -392,7 +392,7 @@ export default function HomeScreen({ navigation }: any) {
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.header}>
             <View style={styles.logoRow}>
-              <Image source={require('../../assets/logo-source.png')} style={styles.logoImage} resizeMode="contain" />
+              <Image source={require('../../assets/logo-full.jpeg')} style={styles.logoImage} resizeMode="contain" />
               
             </View>
             <Text style={styles.tagline}>feel it now. find it later.</Text>
@@ -508,7 +508,7 @@ export default function HomeScreen({ navigation }: any) {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoRow}>
-            <Image source={require('../../assets/logo-source.png')} style={styles.logoImage} resizeMode="contain" />
+            <Image source={require('../../assets/logo-full.jpeg')} style={styles.logoImage} resizeMode="contain" />
             
           </View>
           <Text style={styles.tagline}>feel it now. find it later.</Text>
@@ -834,7 +834,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#161616',
   },
   logoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logoImage: { width: 32, height: 32, borderRadius: 0 },
+  logoImage: { width: 160, height: 48, borderRadius: 0 },
   logo: { fontSize: 26, fontWeight: '800', color: '#fff' },
   tagline: { fontSize: 13, color: '#8B5CF6', marginTop: 2, letterSpacing: 0.5 },
   pillRowWrapper: {

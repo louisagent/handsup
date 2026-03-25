@@ -107,7 +107,7 @@ export default function AuthScreen({ onAuth }: AuthScreenProps) {
         {/* ── Logo block ── */}
         <View style={styles.logoBlock}>
           <Image
-              source={require('../../assets/logo-primary-source.png')}
+              source={require('../../assets/logo-full.jpeg')}
               style={styles.logoImage}
               resizeMode="contain"
             />
