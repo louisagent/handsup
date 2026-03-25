@@ -16,7 +16,7 @@
     "ios": {
       "icon": "./assets/icon.png",
       "supportsTablet": false,
-      "bundleIdentifier": "com.handsuplate.app",
+      "bundleIdentifier": "com.handsup.live",
       "buildNumber": "1",
       "associatedDomains": ["applinks:handsuplive.com"],
       "infoPlist": {
@@ -28,7 +28,7 @@
       }
     },
     "android": {
-      "package": "com.handsuplate.app",
+      "package": "com.handsup.live",
       "versionCode": 1,
       "intentFilters": [
         {
