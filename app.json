@@ -18,7 +18,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.handsup.live",
       "buildNumber": "1",
-      "associatedDomains": ["applinks:handsuplive.com"],
+
       "infoPlist": {
         "NSCameraUsageDescription": "handsup needs camera access to record festival clips.",
         "NSPhotoLibraryUsageDescription": "handsup needs access to your photo library to select videos.",
