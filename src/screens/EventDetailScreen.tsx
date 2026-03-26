@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Clipboard from 'expo-clipboard';
 import * as Notifications from 'expo-notifications';
 import { FestivalEvent, SetTime } from '../data/eventsData';
-import { Clip } from '../types';
+import { Clip, Event as SupabaseEvent } from '../types';
 import { getClipsByEvent, recordDownload } from '../services/clips';
 import { getEventMemberCount } from '../services/events';
 import { supabase } from '../services/supabase';
@@ -40,8 +40,45 @@ import { isModerator } from '../services/moderator';
 // ── Constants ──────────────────────────────────────────────
 const DOWNLOAD_ALL_CAP = 10;
 
+// ── Compatibility shim ─────────────────────────────────────
+// Normalise either a FestivalEvent (local) or a Supabase Event into the
+// FestivalEvent shape that the rest of this screen uses.
+function normaliseEvent(raw: FestivalEvent | SupabaseEvent): FestivalEvent {
+  // If it already has the FestivalEvent shape (has `dates` or `genre` array), pass through
+  if ('dates' in raw || ('genre' in raw && Array.isArray((raw as any).genre))) {
+    return raw as FestivalEvent;
+  }
+  // Otherwise it's a Supabase Event — map to FestivalEvent
+  const e = raw as SupabaseEvent;
+  const start = e.start_date ?? '';
+  const end = e.end_date ?? '';
+  const dates = start && end ? `${start} – ${end}` : start;
+  return {
+    id: e.id,
+    name: e.name,
+    location: e.city ?? e.location ?? '',
+    country: e.country ?? '',
+    dates,
+    description: e.description ?? '',
+    genre: Array.isArray(e.genre_tags) ? e.genre_tags : [],
+    clipCount: e.clip_count ?? 0,
+    attendees: e.attendee_estimate ?? '',
+    image: e.image_url ?? '',
+    upcoming: (e as any).is_upcoming ?? false,
+    is_partner: e.is_partner,
+    is_private: e.is_private,
+    invite_code: e.invite_code,
+    created_by: e.created_by,
+    // lat/lng not on Supabase Event yet — leave undefined
+    lat: undefined,
+    lng: undefined,
+    lineup: undefined,
+  };
+}
+
 export default function EventDetailScreen({ route, navigation }: any) {
-  const { event }: { event: FestivalEvent } = route.params;
+  const rawEvent: FestivalEvent | SupabaseEvent = route.params?.event;
+  const event: FestivalEvent = normaliseEvent(rawEvent);
   const [activeTab, setActiveTab] = useState<'clips' | 'lineup' | 'info' | 'about'>('clips');
 
   const [clips, setClips] = useState<Clip[]>([]);

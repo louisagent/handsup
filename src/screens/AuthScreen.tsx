@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Image,
   StatusBar,
+  Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { signIn, signUp } from '../services/auth';
@@ -45,15 +46,58 @@ export default function AuthScreen({ onAuth }: AuthScreenProps) {
     setPassword('');
   };
 
+  // ── User-friendly error mapper ───────────────────────────
+  const friendlyError = (err: any): string => {
+    const msg: string = (err?.message ?? err?.error_description ?? String(err)).toLowerCase();
+    if (msg.includes('invalid login credentials') || msg.includes('invalid email or password')) {
+      return 'Incorrect email or password. Please try again.';
+    }
+    if (msg.includes('email not confirmed')) {
+      return 'Please verify your email address before signing in.';
+    }
+    if (msg.includes('user already registered') || msg.includes('already been registered') || msg.includes('email address is already')) {
+      return 'An account with this email already exists. Try signing in.';
+    }
+    if (msg.includes('username') && msg.includes('already')) {
+      return 'That username is taken. Please choose a different one.';
+    }
+    if (msg.includes('password') && (msg.includes('short') || msg.includes('weak') || msg.includes('least'))) {
+      return 'Password must be at least 6 characters.';
+    }
+    if (msg.includes('rate limit') || msg.includes('too many')) {
+      return 'Too many attempts. Please wait a moment and try again.';
+    }
+    if (msg.includes('network') || msg.includes('fetch') || msg.includes('timeout') || msg.includes('failed to fetch')) {
+      return 'Network error. Check your connection and try again.';
+    }
+    if (msg.includes('invalid email')) {
+      return 'Please enter a valid email address.';
+    }
+    return err?.message ?? 'Something went wrong. Please try again.';
+  };
+
   const handleSubmit = async () => {
+    Keyboard.dismiss();
     setError(null);
 
-    if (!email || !password) {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    const trimmedUsername = username.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
       setError('Please fill in your email/username and password.');
       return;
     }
-    if (mode === 'signup' && !username) {
+    if (mode === 'signup' && !trimmedUsername) {
       setError('Please choose a username.');
+      return;
+    }
+    if (mode === 'signup' && trimmedUsername.length < 3) {
+      setError('Username must be at least 3 characters.');
+      return;
+    }
+    if (mode === 'signup' && trimmedPassword.length < 6) {
+      setError('Password must be at least 6 characters.');
       return;
     }
 
@@ -62,13 +106,13 @@ export default function AuthScreen({ onAuth }: AuthScreenProps) {
       let profile: Profile;
       if (mode === 'signin') {
         // If input looks like an email use it directly, otherwise look up email by username
-        const isEmail = email.includes('@');
-        let signInEmail = email.trim();
+        const isEmail = trimmedEmail.includes('@');
+        let signInEmail = trimmedEmail;
 
         if (!isEmail) {
           // Username entered — look up their email via secure RPC
           const { getEmailByUsername } = await import('../services/auth');
-          const foundEmail = await getEmailByUsername(email.trim());
+          const foundEmail = await getEmailByUsername(trimmedEmail);
           if (!foundEmail) {
             setError('No account found with that username.');
             setLoading(false);
@@ -76,13 +120,13 @@ export default function AuthScreen({ onAuth }: AuthScreenProps) {
           }
           signInEmail = foundEmail;
         }
-        profile = await signIn(signInEmail, password);
+        profile = await signIn(signInEmail, trimmedPassword);
       } else {
-        profile = await signUp(email, password, username);
+        profile = await signUp(trimmedEmail, trimmedPassword, trimmedUsername);
       }
       onAuth(profile);
     } catch (err: any) {
-      setError(err?.message ?? 'Something went wrong. Please try again.');
+      setError(friendlyError(err));
     } finally {
       setLoading(false);
     }

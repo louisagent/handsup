@@ -18,19 +18,31 @@ import {
 } from 'react-native';
 import MapView, { Marker, Region, MapStyleElement } from 'react-native-maps';
 import { FestivalEvent, festivals } from '../data/eventsData';
+import { getEvents } from '../services/events';
+import { Event } from '../types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// ── Hardcoded coordinates for seeded events ──────────────────
-// TODO: Move these to the `events` Supabase table as lat/lng columns
-// Keys match `name` field from eventsData.ts
-const EVENT_COORDINATES: Record<string, { latitude: number; longitude: number }> = {
+// ── Hardcoded coordinates for all known events ───────────────
+// Bridge until the `events` Supabase table gains lat/lng columns.
+// Keys match `name` field from eventsData.ts / Supabase events.name
+const FESTIVAL_COORDS: Record<string, { latitude: number; longitude: number }> = {
   'Laneway Festival':          { latitude: -37.8007, longitude: 144.9507 },
-  'Splendour in the Grass':    { latitude: -28.6516, longitude: 153.5636 },
-  'Glastonbury':                { latitude: 51.1536,  longitude: -2.6406  },
-  'Coachella':                  { latitude: 33.6796,  longitude: -116.2376 },
+  'Splendour in the Grass':    { latitude: -28.5167, longitude: 153.4333 },
+  'Glastonbury':                { latitude: 51.1536,  longitude: -2.5906  },
+  'Coachella':                  { latitude: 33.6831,  longitude: -116.2370 },
   'Field Day':                  { latitude: -33.8688, longitude: 151.2093 },
-  'Meredith Music Festival':    { latitude: -37.8391, longitude: 143.9784 },
+  'Meredith Music Festival':    { latitude: -37.8494, longitude: 144.0736 },
+  'Beyond the Valley':          { latitude: -38.5000, longitude: 146.6500 },
+  'Strawberry Fields':          { latitude: -35.8333, longitude: 145.5667 },
+  'Falls Festival':             { latitude: -38.5407, longitude: 143.9800 },
+  'Falls Festival (Lorne)':     { latitude: -38.5407, longitude: 143.9800 },
+  'Spilt Milk Festival':        { latitude: -35.2809, longitude: 149.1300 },
+  'Wildlands Festival':         { latitude: -27.4698, longitude: 153.0251 },
+  // Legacy local data coords
+  'Southbound Festival':        { latitude: -31.9505, longitude: 115.8605 },
+  'Secret Garden Sessions':     { latitude: -37.7991, longitude: 144.9784 },
+  'Rooftop After-Dark':         { latitude: -33.8855, longitude: 151.2094 },
 };
 
 // ── Dark map style (Uber/TikTok-inspired) ─────────────────────
@@ -56,20 +68,62 @@ const DARK_MAP_STYLE: MapStyleElement[] = [
 ];
 
 // ── Types ──────────────────────────────────────────────────────
-interface MapEvent extends FestivalEvent {
+interface MapEvent {
+  id: string;
+  name: string;
+  location: string;
+  dates: string;
+  clipCount: number;
+  is_partner?: boolean;
+  is_private?: boolean;
+  invite_code?: string;
+  created_by?: string;
+  // Original event for navigation
+  originalEvent: FestivalEvent | null;
+  supabaseEvent: Event | null;
   latitude: number;
   longitude: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────
-function getEventsWithCoords(): MapEvent[] {
-  return festivals
-    .map((f) => {
-      const coords = EVENT_COORDINATES[f.name];
-      if (!coords) return null;
-      return { ...f, ...coords };
-    })
-    .filter((f): f is MapEvent => f !== null);
+function supabaseEventToMapEvent(e: Event): MapEvent | null {
+  const coords = FESTIVAL_COORDS[e.name];
+  if (!coords) return null;
+  return {
+    id: e.id,
+    name: e.name,
+    location: e.city ?? e.location,
+    dates: e.start_date ? e.start_date.substring(0, 7) : '',
+    clipCount: e.clip_count ?? 0,
+    is_partner: e.is_partner,
+    is_private: e.is_private,
+    invite_code: e.invite_code,
+    created_by: e.created_by,
+    originalEvent: festivals.find((f) => f.name === e.name) ?? null,
+    supabaseEvent: e,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
+  };
+}
+
+function localEventToMapEvent(f: FestivalEvent): MapEvent | null {
+  const coords = FESTIVAL_COORDS[f.name];
+  if (!coords) return null;
+  return {
+    id: f.id,
+    name: f.name,
+    location: f.location,
+    dates: f.dates,
+    clipCount: f.clipCount,
+    is_partner: f.is_partner,
+    is_private: f.is_private,
+    invite_code: f.invite_code,
+    created_by: f.created_by,
+    originalEvent: f,
+    supabaseEvent: null,
+    latitude: coords.latitude,
+    longitude: coords.longitude,
+  };
 }
 
 // ── Custom Marker ─────────────────────────────────────────────
@@ -232,12 +286,39 @@ const cardStyles = StyleSheet.create({
 export default function MapScreen({ navigation }: any) {
   const [selectedEvent, setSelectedEvent] = useState<MapEvent | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [allEvents, setAllEvents] = useState<MapEvent[]>([]);
   const mapRef = useRef<MapView>(null);
 
-  const allEvents = getEventsWithCoords();
+  // Load events from Supabase, fall back to local data for missing coords
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabaseEvents = await getEvents();
+        const mapped = supabaseEvents
+          .map(supabaseEventToMapEvent)
+          .filter((e): e is MapEvent => e !== null);
+
+        if (mapped.length > 0) {
+          setAllEvents(mapped);
+        } else {
+          // Fallback: use local data if Supabase returned nothing
+          const local = festivals
+            .map(localEventToMapEvent)
+            .filter((e): e is MapEvent => e !== null);
+          setAllEvents(local);
+        }
+      } catch {
+        // Fallback to local data on error
+        const local = festivals
+          .map(localEventToMapEvent)
+          .filter((e): e is MapEvent => e !== null);
+        setAllEvents(local);
+      }
+    })();
+  }, []);
 
   // Compute which events match the current query
-  const matchingIds: Set<string | number> = searchQuery.trim()
+  const matchingIds: Set<string> = searchQuery.trim()
     ? new Set(
         allEvents
           .filter((e) => e.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -276,10 +357,27 @@ export default function MapScreen({ navigation }: any) {
 
   const handleViewEvent = () => {
     if (!selectedEvent) return;
-    const festivalData = festivals.find((f) => f.id === selectedEvent.id);
-    if (festivalData) {
-      navigation.navigate('EventDetail', { event: festivalData });
-    }
+    // Prefer Supabase event, fall back to local FestivalEvent, fall back to shape from MapEvent
+    const eventData = selectedEvent.supabaseEvent
+      ?? selectedEvent.originalEvent
+      ?? {
+          id: selectedEvent.id,
+          name: selectedEvent.name,
+          location: selectedEvent.location,
+          country: '',
+          dates: selectedEvent.dates,
+          description: '',
+          genre: [],
+          clipCount: selectedEvent.clipCount,
+          attendees: '',
+          image: '',
+          upcoming: false,
+          is_partner: selectedEvent.is_partner,
+          is_private: selectedEvent.is_private,
+          invite_code: selectedEvent.invite_code,
+          created_by: selectedEvent.created_by,
+        };
+    navigation.navigate('EventDetail', { event: eventData });
     setSelectedEvent(null);
   };
 

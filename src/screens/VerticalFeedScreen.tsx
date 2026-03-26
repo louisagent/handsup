@@ -19,7 +19,7 @@ import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Clip } from '../types';
-import { getRecentClips, recordDownload } from '../services/clips';
+import { getRecentClips, recordDownload, resolveVideoUrl } from '../services/clips';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -191,6 +191,16 @@ function FeedItem({ item, isVisible, isMuted, onToggleMute, navigation }: FeedIt
   const swipeDeltaX = useRef(new Animated.Value(0)).current;
   const [overlayVisible, setOverlayVisible] = useState(true);
   const overlayOpacity = useRef(new Animated.Value(1)).current;
+  const [resolvedVideoUrl, setResolvedVideoUrl] = useState<string>(item.video_url ?? '');
+
+  // Resolve signed URL for private bucket on mount
+  React.useEffect(() => {
+    let cancelled = false;
+    resolveVideoUrl(item).then((url) => {
+      if (!cancelled && url) setResolvedVideoUrl(url);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [item.id, item.video_url]);
 
   const toggleOverlay = useCallback(() => {
     const toValue = overlayVisible ? 0 : 1;
@@ -306,10 +316,10 @@ function FeedItem({ item, isVisible, isMuted, onToggleMute, navigation }: FeedIt
   return (
     <View style={styles.itemContainer}>
       {/* Video layer */}
-      {item.video_url ? (
+      {resolvedVideoUrl ? (
         <Video
           ref={videoRef}
-          source={{ uri: item.video_url }}
+          source={{ uri: resolvedVideoUrl }}
           style={StyleSheet.absoluteFill}
           resizeMode={ResizeMode.COVER}
           isLooping

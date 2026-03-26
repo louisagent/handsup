@@ -452,6 +452,54 @@ export async function getClipCountForSet(artist: string, festivalName: string): 
   return count ?? 0;
 }
 
+// ── Signed URL helpers (private clips bucket) ──────────────
+
+/**
+ * Generate a fresh signed URL for a given storage path.
+ * Path should be relative to the clips bucket, e.g. "user-id/filename.mp4"
+ */
+export async function getSignedUrl(path: string, expiresInSeconds = 60 * 60 * 24 * 7): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from('clips')
+    .createSignedUrl(path, expiresInSeconds);
+  if (error) return null;
+  return data?.signedUrl ?? null;
+}
+
+/**
+ * Resolve the best playable URL for a clip.
+ * - Signed URL (contains token=): return as-is
+ * - Public URL (/object/public/clips/...): extract path and generate signed URL
+ * - Storage path (clips/... or user-id/...): generate signed URL directly
+ */
+export async function resolveVideoUrl(clip: Clip): Promise<string> {
+  const url = clip.video_url;
+  if (!url) return '';
+
+  // Already a signed URL — return as-is (may be expired, but best we can do without path)
+  if (url.startsWith('http') && url.includes('token=')) {
+    return url;
+  }
+
+  // Public-style URL — extract path after /public/clips/
+  if (url.startsWith('http') && url.includes('/object/public/clips/')) {
+    const match = url.match(/\/object\/public\/clips\/(.+)/);
+    if (match?.[1]) {
+      const signed = await getSignedUrl(decodeURIComponent(match[1]));
+      return signed ?? url;
+    }
+    return url;
+  }
+
+  // Storage path — either "clips/..." or bare "user-id/file.mp4"
+  let storagePath = url;
+  if (storagePath.startsWith('clips/')) {
+    storagePath = storagePath.replace(/^clips\//, '');
+  }
+  const signed = await getSignedUrl(storagePath);
+  return signed ?? url;
+}
+
 // ── Algorithmic For You Feed ────────────────────────────────
 
 // Get "For You" feed — personalised mix based on engagement history

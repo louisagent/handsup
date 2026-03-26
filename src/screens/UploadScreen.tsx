@@ -278,8 +278,8 @@ export default function UploadScreen({ route }: any) {
 
       xhr.addEventListener('load', () => {
         if (xhr.status >= 200 && xhr.status < 300) {
-          const publicUrl = `${supabaseUrl}/storage/v1/object/public/clips/${fileName}`;
-          resolve(publicUrl);
+          // Return the storage path (not a public URL — clips bucket is private)
+          resolve(fileName);
         } else {
           reject(new Error(`Upload failed: ${xhr.status}`));
         }
@@ -349,7 +349,17 @@ export default function UploadScreen({ route }: any) {
       const fileName = `${user.id}/${Date.now()}-${artist.replace(/\s+/g, '-').toLowerCase()}.mp4`;
 
       // Use XHR-based upload for real progress events
-      const videoUrl = await uploadVideoWithProgress(videoUri!, fileName, setUploadProgress);
+      // uploadVideoWithProgress now returns the storage path (not a public URL)
+      const storagePath = await uploadVideoWithProgress(videoUri!, fileName, setUploadProgress);
+
+      // Generate a 1-year signed URL for the private clips bucket
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from('clips')
+        .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+      const videoUrl = signedData?.signedUrl ?? storagePath;
+      if (signedError) {
+        console.warn('Failed to create signed URL, storing path instead:', signedError.message);
+      }
 
       setUploadProgress(100);
       setUploadStatus('processing');
