@@ -212,7 +212,7 @@ export default function App() {
   const [splashDone, setSplashDone] = useState(false);
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
   const [user, setUser] = useState<object | null | undefined>(undefined); // undefined = still checking
-  const [preferencesDone, setPreferencesDone] = useState<boolean>(true); // default true — never block on this
+  const [preferencesDone, setPreferencesDone] = useState<boolean | null>(true); // default true — never block on this
   const [activityBadge, setActivityBadge] = useState(0);
   const navigationRef = useRef<NavigationContainerRef<any>>(null);
   // Holds a deep-link clip ID received before the navigator is ready

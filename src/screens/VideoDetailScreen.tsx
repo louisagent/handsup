@@ -867,10 +867,9 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
               {/* Track ID overlay — bottom-left corner of player */}
               {video.track_name && video.track_artist && (
                 <TouchableOpacity
-                  style={styles.trackIdOverlay}
+                  style={[styles.trackIdOverlay, { pointerEvents: 'box-only' }]}
                   onPress={() => video.track_streaming_url ? Linking.openURL(video.track_streaming_url) : null}
                   activeOpacity={video.track_streaming_url ? 0.75 : 1}
-                  pointerEvents="box-only"
                 >
                   <Ionicons name="musical-notes" size={10} color="#A78BFA" style={{ marginRight: 5 }} />
                   <View>

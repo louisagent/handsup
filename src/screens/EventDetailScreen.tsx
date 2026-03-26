@@ -538,7 +538,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
           )}
           <View style={styles.heroContent}>
             <Text style={styles.heroName}>{event.name}</Text>
-            <Text style={styles.heroMeta}>📍 {event.location ?? ''}{event.country ? `, ${event.country}` : ''}  ·  📅 {(event as any).dates ?? event.start_date ?? ''}</Text>
+            <Text style={styles.heroMeta}>📍 {event.location ?? ''}{event.country ? `, ${event.country}` : ''}  ·  📅 {event.dates ?? ''}</Text>
             <TouchableOpacity
               style={[styles.attendBtn, attended && styles.attendBtnActive]}
               onPress={handleAttendanceToggle}
@@ -1235,7 +1235,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
             <Text style={styles.infoBody}>📍 {event.location}, {event.country}</Text>
 
             <Text style={styles.infoLabel}>Dates</Text>
-            <Text style={styles.infoBody}>📅 {(event as any).dates ?? event.start_date ?? ''}</Text>
+            <Text style={styles.infoBody}>📅 {event.dates ?? ''}</Text>
 
             <Text style={styles.infoLabel}>Expected Attendance</Text>
             <Text style={styles.infoBody}>👥 {event.attendees}</Text>

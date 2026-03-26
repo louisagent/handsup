@@ -16,7 +16,7 @@
     "ios": {
       "icon": "./assets/icon.png",
       "supportsTablet": false,
-      "bundleIdentifier": "com.handsup.live",
+      "bundleIdentifier": "com.zacgibson.handsuplive",
       "buildNumber": "1",
 
       "infoPlist": {
