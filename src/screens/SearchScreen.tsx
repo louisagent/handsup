@@ -708,7 +708,16 @@ export default function SearchScreen({ navigation, route }: any) {
       {/* Trending artists (when not searching) */}
       {!isSearching && trendingArtists.length > 0 && (
         <View style={styles.trendSection}>
-          <Text style={styles.trendTitle}>🔥 Trending Artists</Text>
+          <View style={styles.trendTitleRow}>
+            <Text style={styles.trendTitle}>🔥 Trending Artists</Text>
+            <TouchableOpacity
+              style={styles.addArtistBtn}
+              onPress={() => navigation.navigate('AddArtist')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.addArtistBtnText}>Add Artist +</Text>
+            </TouchableOpacity>
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -975,7 +984,17 @@ const styles = StyleSheet.create({
   },
 
   trendSection: { paddingVertical: 16, paddingHorizontal: 20 },
-  trendTitle: { fontSize: 14, fontWeight: '700', color: '#fff', marginBottom: 10 },
+  trendTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  trendTitle: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  addArtistBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: 'rgba(139,92,246,0.15)',
+    borderWidth: 1,
+    borderColor: '#8B5CF6',
+  },
+  addArtistBtnText: { color: '#8B5CF6', fontWeight: '700', fontSize: 12 },
   trendRow: { gap: 8 },
   artistChip: {
     backgroundColor: '#1a1a2e',

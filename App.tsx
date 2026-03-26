@@ -53,6 +53,7 @@ import FindYourCrewScreen from './src/screens/FindYourCrewScreen';
 import CrewFinderScreen from './src/screens/CrewFinderScreen';
 import ArtistClaimScreen from './src/screens/ArtistClaimScreen';
 import LineupAdminScreen from './src/screens/LineupAdminScreen';
+import AddArtistScreen from './src/screens/AddArtistScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -542,6 +543,11 @@ export default function App() {
           name="LineupAdmin"
           component={LineupAdminScreen}
           options={({ route }: any) => ({ title: `Lineup — ${route.params?.eventName ?? 'Event'}`, headerBackTitle: 'Back' })}
+        />
+        <Stack.Screen
+          name="AddArtist"
+          component={AddArtistScreen}
+          options={{ title: 'Add Artist', headerBackTitle: 'Back' }}
         />
       </Stack.Navigator>
     </NavigationContainer>

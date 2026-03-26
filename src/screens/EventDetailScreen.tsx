@@ -14,6 +14,8 @@ import {
   Linking,
   Animated,
   Platform,
+  TextInput,
+  KeyboardAvoidingView,
 } from 'react-native';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,6 +38,12 @@ import {
 } from '../services/setAlerts';
 import { getEventLineup, LineupEntry } from '../services/lineups';
 import { isModerator } from '../services/moderator';
+import {
+  getEventDiscussions,
+  postEventDiscussion,
+  getDiscussionReplies,
+  EventDiscussion,
+} from '../services/discussions';
 
 // ── Constants ──────────────────────────────────────────────
 const DOWNLOAD_ALL_CAP = 10;
@@ -79,7 +87,7 @@ function normaliseEvent(raw: FestivalEvent | SupabaseEvent): FestivalEvent {
 export default function EventDetailScreen({ route, navigation }: any) {
   const rawEvent: FestivalEvent | SupabaseEvent = route.params?.event;
   const event: FestivalEvent = normaliseEvent(rawEvent);
-  const [activeTab, setActiveTab] = useState<'clips' | 'lineup' | 'info' | 'about'>('clips');
+  const [activeTab, setActiveTab] = useState<'clips' | 'lineup' | 'info' | 'about' | 'discussion'>('clips');
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,6 +112,17 @@ export default function EventDetailScreen({ route, navigation }: any) {
   const [lineupLoading, setLineupLoading] = useState(false);
   // Mod state
   const [isMod, setIsMod] = useState(false);
+
+  // Discussion state
+  const [eventDiscussions, setEventDiscussions] = useState<EventDiscussion[]>([]);
+  const [discussionLoading, setDiscussionLoading] = useState(false);
+  const [newDiscPost, setNewDiscPost] = useState('');
+  const [discPosting, setDiscPosting] = useState(false);
+  const [discUsername, setDiscUsername] = useState('user');
+  const [expandedDiscPost, setExpandedDiscPost] = useState<string | null>(null);
+  const [discReplies, setDiscReplies] = useState<Record<string, EventDiscussion[]>>({});
+  const [discReplyText, setDiscReplyText] = useState<Record<string, string>>({});
+  const [discReplyPosting, setDiscReplyPosting] = useState<Record<string, boolean>>({});
 
   // Pulsing green dot for "live now"
   const greenPulseAnim = useRef(new Animated.Value(1)).current;
@@ -180,7 +199,88 @@ export default function EventDetailScreen({ route, navigation }: any) {
     });
     // Load mod state
     isModerator().then(setIsMod).catch(() => {});
+    // Load current user's username for discussions
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (profile?.username) setDiscUsername(profile.username);
+      } catch {}
+    })();
   }, [loadClips, event.id, event.is_private]);
+
+  const eventIdStr = String(event.id);
+
+  const loadEventDiscussions = useCallback(async () => {
+    setDiscussionLoading(true);
+    try {
+      const data = await getEventDiscussions(eventIdStr);
+      setEventDiscussions(data);
+    } catch {}
+    finally { setDiscussionLoading(false); }
+  }, [eventIdStr]);
+
+  useEffect(() => {
+    if (activeTab === 'discussion') loadEventDiscussions();
+  }, [activeTab, loadEventDiscussions]);
+
+  const handlePostEventDiscussion = async () => {
+    if (!newDiscPost.trim()) return;
+    setDiscPosting(true);
+    try {
+      const post = await postEventDiscussion({
+        event_id: eventIdStr,
+        body: newDiscPost.trim(),
+        username: discUsername,
+      });
+      setEventDiscussions((prev) => [post, ...prev]);
+      setNewDiscPost('');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Could not post.');
+    } finally {
+      setDiscPosting(false);
+    }
+  };
+
+  const handleToggleDiscReplies = async (postId: string) => {
+    if (expandedDiscPost === postId) {
+      setExpandedDiscPost(null);
+      return;
+    }
+    setExpandedDiscPost(postId);
+    if (!discReplies[postId]) {
+      try {
+        const data = await getDiscussionReplies(postId);
+        // getDiscussionReplies returns ArtistDiscussion, we cast here since shape is identical
+        setDiscReplies((prev) => ({ ...prev, [postId]: data as unknown as EventDiscussion[] }));
+      } catch {}
+    }
+  };
+
+  const handlePostDiscReply = async (parentId: string) => {
+    const text = discReplyText[parentId]?.trim();
+    if (!text) return;
+    setDiscReplyPosting((prev) => ({ ...prev, [parentId]: true }));
+    try {
+      const reply = await postEventDiscussion({
+        event_id: eventIdStr,
+        body: text,
+        username: discUsername,
+        parent_id: parentId,
+      });
+      setDiscReplies((prev) => ({ ...prev, [parentId]: [...(prev[parentId] ?? []), reply] }));
+      setDiscReplyText((prev) => ({ ...prev, [parentId]: '' }));
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Could not post reply.');
+    } finally {
+      setDiscReplyPosting((prev) => ({ ...prev, [parentId]: false }));
+    }
+  };
 
   const handleAttendanceToggle = async () => {
     setAttendanceLoading(true);
@@ -766,6 +866,14 @@ export default function EventDetailScreen({ route, navigation }: any) {
               🎪 About
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'discussion' && styles.tabActive]}
+            onPress={() => setActiveTab('discussion')}
+          >
+            <Text style={[styles.tabText, activeTab === 'discussion' && styles.tabTextActive]}>
+              💬 Chat
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* ══════════════ CLIPS TAB ══════════════ */}
@@ -1303,9 +1411,107 @@ export default function EventDetailScreen({ route, navigation }: any) {
             )}
           </View>
         )}
+        {/* ══════════════ DISCUSSION TAB ══════════════ */}
+        {activeTab === 'discussion' && (
+          <View style={styles.discussionSection}>
+            {discussionLoading ? (
+              <ActivityIndicator color="#8B5CF6" style={{ marginTop: 24 }} />
+            ) : eventDiscussions.length === 0 ? (
+              <View style={styles.discEmpty}>
+                <Text style={styles.discEmptyEmoji}>💬</Text>
+                <Text style={styles.discEmptyText}>No discussions yet. Start the conversation! 💬</Text>
+              </View>
+            ) : (
+              eventDiscussions.map((post) => (
+                <View key={post.id} style={styles.discPostCard}>
+                  <View style={styles.discPostHeader}>
+                    <Text style={styles.discPostUsername}>@{post.username}</Text>
+                    <Text style={styles.discPostTime}>{formatDiscTimeAgo(post.created_at)}</Text>
+                  </View>
+                  <Text style={styles.discPostBody}>{post.body}</Text>
+                  <TouchableOpacity
+                    style={styles.discReplyToggle}
+                    onPress={() => handleToggleDiscReplies(post.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="chatbubble-outline" size={13} color="#666" />
+                    <Text style={styles.discReplyToggleText}>
+                      {expandedDiscPost === post.id ? 'Hide replies' : 'Reply'}
+                    </Text>
+                  </TouchableOpacity>
+                  {expandedDiscPost === post.id && (
+                    <View style={styles.discRepliesWrap}>
+                      {(discReplies[post.id] ?? []).map((reply) => (
+                        <View key={reply.id} style={styles.discReplyCard}>
+                          <Text style={styles.discReplyUsername}>@{reply.username}</Text>
+                          <Text style={styles.discReplyBody}>{reply.body}</Text>
+                        </View>
+                      ))}
+                      <View style={styles.discReplyInputRow}>
+                        <TextInput
+                          style={styles.discReplyInput}
+                          placeholder="Write a reply..."
+                          placeholderTextColor="#555"
+                          value={discReplyText[post.id] ?? ''}
+                          onChangeText={(t) => setDiscReplyText((prev) => ({ ...prev, [post.id]: t }))}
+                          multiline
+                        />
+                        <TouchableOpacity
+                          style={styles.discSendBtn}
+                          onPress={() => handlePostDiscReply(post.id)}
+                          disabled={discReplyPosting[post.id]}
+                          activeOpacity={0.85}
+                        >
+                          {discReplyPosting[post.id] ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Ionicons name="send" size={16} color="#fff" />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+            <View style={styles.discNewPostRow}>
+              <TextInput
+                style={styles.discNewPostInput}
+                placeholder="Start a discussion..."
+                placeholderTextColor="#555"
+                value={newDiscPost}
+                onChangeText={setNewDiscPost}
+                multiline
+              />
+              <TouchableOpacity
+                style={styles.discNewPostBtn}
+                onPress={handlePostEventDiscussion}
+                disabled={discPosting}
+                activeOpacity={0.85}
+              >
+                {discPosting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="send" size={18} color="#fff" />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
+}
+
+function formatDiscTimeAgo(dateString: string): string {
+  const diff = Date.now() - new Date(dateString).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
 }
 
 const styles = StyleSheet.create({
@@ -2025,4 +2231,44 @@ const styles = StyleSheet.create({
   },
   crewClipCount: { color: '#A78BFA', fontWeight: '800', fontSize: 13, lineHeight: 16 },
   crewClipLabel: { color: '#666', fontSize: 10, fontWeight: '600' },
+
+  // Discussion tab
+  discussionSection: { padding: 16, paddingBottom: 60 },
+  discEmpty: { padding: 36, alignItems: 'center', gap: 8 },
+  discEmptyEmoji: { fontSize: 40 },
+  discEmptyText: { color: '#555', fontSize: 15, textAlign: 'center', fontWeight: '600' },
+  discPostCard: {
+    backgroundColor: '#111', borderRadius: 12, borderWidth: 1,
+    borderColor: '#222', padding: 14, marginBottom: 10,
+  },
+  discPostHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  discPostUsername: { color: '#8B5CF6', fontWeight: '700', fontSize: 13 },
+  discPostTime: { color: '#444', fontSize: 11 },
+  discPostBody: { color: '#ddd', fontSize: 14, lineHeight: 20 },
+  discReplyToggle: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  discReplyToggleText: { color: '#666', fontSize: 12 },
+  discRepliesWrap: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#222' },
+  discReplyCard: { backgroundColor: '#161616', borderRadius: 8, padding: 10, marginBottom: 6 },
+  discReplyUsername: { color: '#8B5CF6', fontWeight: '600', fontSize: 12, marginBottom: 3 },
+  discReplyBody: { color: '#bbb', fontSize: 13 },
+  discReplyInputRow: { flexDirection: 'row', gap: 8, marginTop: 8, alignItems: 'flex-end' },
+  discReplyInput: {
+    flex: 1, backgroundColor: '#1a1a1a', borderRadius: 8, borderWidth: 1,
+    borderColor: '#333', color: '#fff', paddingHorizontal: 10, paddingVertical: 8,
+    fontSize: 13, maxHeight: 80,
+  },
+  discSendBtn: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#8B5CF6',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  discNewPostRow: { flexDirection: 'row', gap: 10, marginTop: 16, alignItems: 'flex-end' },
+  discNewPostInput: {
+    flex: 1, backgroundColor: '#111', borderRadius: 12, borderWidth: 1,
+    borderColor: '#333', color: '#fff', paddingHorizontal: 14, paddingVertical: 11,
+    fontSize: 14, maxHeight: 100,
+  },
+  discNewPostBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: '#8B5CF6',
+    alignItems: 'center', justifyContent: 'center',
+  },
 });

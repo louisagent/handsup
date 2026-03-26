@@ -15,6 +15,9 @@ import {
   Dimensions,
   Linking,
   Switch,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Clip } from '../types';
@@ -24,8 +27,26 @@ import { isFollowing, followUser, unfollowUser } from '../services/follows';
 import * as Haptics from 'expo-haptics';
 import { getArtistClaim, getMyArtistClaim, ArtistClaim } from '../services/artistClaim';
 import { getArtistFestivalAppearances } from '../services/lineups';
+import { supabase } from '../services/supabase';
+import {
+  getArtistDiscussions,
+  getDiscussionReplies,
+  postArtistDiscussion,
+  ArtistDiscussion,
+} from '../services/discussions';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+
+function formatTimeAgo(dateString: string): string {
+  const diff = Date.now() - new Date(dateString).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
 
 export default function ArtistScreen({ route, navigation }: any) {
   const { artist } = route.params as { artist: string };
@@ -43,6 +64,20 @@ export default function ArtistScreen({ route, navigation }: any) {
   const [artistClaim, setArtistClaim] = useState<ArtistClaim | null>(null);
   const [myClaim, setMyClaim] = useState<ArtistClaim | null>(null);
   const [upcomingGigs, setUpcomingGigs] = useState<any[]>([]);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'clips' | 'discussion'>('clips');
+
+  // Discussion state
+  const [discussions, setDiscussions] = useState<ArtistDiscussion[]>([]);
+  const [discussionLoading, setDiscussionLoading] = useState(false);
+  const [newPost, setNewPost] = useState('');
+  const [posting, setPosting] = useState(false);
+  const [currentUsername, setCurrentUsername] = useState<string>('user');
+  const [expandedPost, setExpandedPost] = useState<string | null>(null);
+  const [replies, setReplies] = useState<Record<string, ArtistDiscussion[]>>({});
+  const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [replyPosting, setReplyPosting] = useState<Record<string, boolean>>({});
 
   // Load persisted view mode once on mount
   useEffect(() => {
@@ -65,6 +100,89 @@ export default function ArtistScreen({ route, navigation }: any) {
   }, [artist]);
 
   useEffect(() => { loadClips(); }, [loadClips]);
+
+  // Load current user's username
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (profile?.username) setCurrentUsername(profile.username);
+      } catch {}
+    })();
+  }, []);
+
+  const artistSlug = artist.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+  const loadDiscussions = useCallback(async () => {
+    setDiscussionLoading(true);
+    try {
+      const data = await getArtistDiscussions(artistSlug);
+      setDiscussions(data);
+    } catch {}
+    finally { setDiscussionLoading(false); }
+  }, [artistSlug]);
+
+  useEffect(() => {
+    if (activeTab === 'discussion') loadDiscussions();
+  }, [activeTab, loadDiscussions]);
+
+  const handlePostDiscussion = async () => {
+    if (!newPost.trim()) return;
+    setPosting(true);
+    try {
+      const post = await postArtistDiscussion({
+        artist_slug: artistSlug,
+        body: newPost.trim(),
+        username: currentUsername,
+      });
+      setDiscussions((prev) => [post, ...prev]);
+      setNewPost('');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Could not post.');
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const handleToggleReplies = async (postId: string) => {
+    if (expandedPost === postId) {
+      setExpandedPost(null);
+      return;
+    }
+    setExpandedPost(postId);
+    if (!replies[postId]) {
+      try {
+        const data = await getDiscussionReplies(postId);
+        setReplies((prev) => ({ ...prev, [postId]: data }));
+      } catch {}
+    }
+  };
+
+  const handlePostReply = async (parentId: string) => {
+    const text = replyText[parentId]?.trim();
+    if (!text) return;
+    setReplyPosting((prev) => ({ ...prev, [parentId]: true }));
+    try {
+      const reply = await postArtistDiscussion({
+        artist_slug: artistSlug,
+        body: text,
+        username: currentUsername,
+        parent_id: parentId,
+      });
+      setReplies((prev) => ({ ...prev, [parentId]: [...(prev[parentId] ?? []), reply] }));
+      setReplyText((prev) => ({ ...prev, [parentId]: '' }));
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Could not post reply.');
+    } finally {
+      setReplyPosting((prev) => ({ ...prev, [parentId]: false }));
+    }
+  };
 
   // Load artist claim data
   useEffect(() => {
@@ -380,60 +498,183 @@ export default function ArtistScreen({ route, navigation }: any) {
           </View>
         )}
 
-        {/* Clips */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>
-              All clips{!loading && clips.length > 0 ? ` (${clips.length})` : ''}
+        {/* Tab Bar */}
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tabBarBtn, activeTab === 'clips' && styles.tabBarBtnActive]}
+            onPress={() => setActiveTab('clips')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="play-outline" size={16} color={activeTab === 'clips' ? '#8B5CF6' : '#666'} />
+            <Text style={[styles.tabBarLabel, activeTab === 'clips' && styles.tabBarLabelActive]}>
+              Clips
             </Text>
-            {!loading && clips.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setViewMode((m) => m === 'list' ? 'grid' : 'list')}
-                style={styles.viewToggleBtn}
-                activeOpacity={0.8}
-              >
-                <Ionicons
-                  name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
-                  size={20}
-                  color="#8B5CF6"
-                />
-              </TouchableOpacity>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabBarBtn, activeTab === 'discussion' && styles.tabBarBtnActive]}
+            onPress={() => setActiveTab('discussion')}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="chatbubbles-outline" size={16} color={activeTab === 'discussion' ? '#8B5CF6' : '#666'} />
+            <Text style={[styles.tabBarLabel, activeTab === 'discussion' && styles.tabBarLabelActive]}>
+              Discussion
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Clips Tab */}
+        {activeTab === 'clips' && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>
+                All clips{!loading && clips.length > 0 ? ` (${clips.length})` : ''}
+              </Text>
+              {!loading && clips.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setViewMode((m) => m === 'list' ? 'grid' : 'list')}
+                  style={styles.viewToggleBtn}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons
+                    name={viewMode === 'list' ? 'grid-outline' : 'list-outline'}
+                    size={20}
+                    color="#8B5CF6"
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {loading ? (
+              <>
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
+              </>
+            ) : error ? (
+              <View style={styles.empty}>
+                <Ionicons name="warning-outline" size={32} color="#555" />
+                <Text style={styles.emptyText}>⚠️ {error}</Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={loadClips}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : clips.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyEmoji}>🎤</Text>
+                <Text style={styles.emptyText}>No clips of {artist} yet.</Text>
+                <Text style={styles.emptySubText}>Been to one of their shows? Upload the first one. 🎤</Text>
+                <TouchableOpacity
+                  style={styles.addArtistBtn}
+                  onPress={() => navigation.navigate('AddArtist', { artistName: artist })}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.addArtistBtnText}>➕ Add this artist</Text>
+                </TouchableOpacity>
+              </View>
+            ) : viewMode === 'grid' ? (
+              <FlatList
+                data={clips}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                scrollEnabled={false}
+                columnWrapperStyle={styles.gridRow}
+                renderItem={renderGridCard}
+              />
+            ) : (
+              clips.map(renderClipCard)
             )}
           </View>
+        )}
 
-          {loading ? (
-            <>
-              <SkeletonCard />
-              <SkeletonCard />
-              <SkeletonCard />
-            </>
-          ) : error ? (
-            <View style={styles.empty}>
-              <Ionicons name="warning-outline" size={32} color="#555" />
-              <Text style={styles.emptyText}>⚠️ {error}</Text>
-              <TouchableOpacity style={styles.retryBtn} onPress={loadClips}>
-                <Text style={styles.retryText}>Retry</Text>
+        {/* Discussion Tab */}
+        {activeTab === 'discussion' && (
+          <View style={styles.section}>
+            {discussionLoading ? (
+              <ActivityIndicator color="#8B5CF6" style={{ marginTop: 24 }} />
+            ) : discussions.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyEmoji}>💬</Text>
+                <Text style={styles.emptyText}>No discussions yet. Start the conversation! 💬</Text>
+              </View>
+            ) : (
+              discussions.map((post) => (
+                <View key={post.id} style={styles.postCard}>
+                  <View style={styles.postHeader}>
+                    <Text style={styles.postUsername}>@{post.username}</Text>
+                    <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
+                  </View>
+                  <Text style={styles.postBody}>{post.body}</Text>
+                  <TouchableOpacity
+                    style={styles.replyToggleBtn}
+                    onPress={() => handleToggleReplies(post.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="chatbubble-outline" size={13} color="#666" />
+                    <Text style={styles.replyToggleText}>
+                      {expandedPost === post.id ? 'Hide replies' : 'Reply'}
+                    </Text>
+                  </TouchableOpacity>
+                  {expandedPost === post.id && (
+                    <View style={styles.repliesContainer}>
+                      {(replies[post.id] ?? []).map((reply) => (
+                        <View key={reply.id} style={styles.replyCard}>
+                          <Text style={styles.replyUsername}>@{reply.username}</Text>
+                          <Text style={styles.replyBody}>{reply.body}</Text>
+                        </View>
+                      ))}
+                      <View style={styles.replyInputRow}>
+                        <TextInput
+                          style={styles.replyInput}
+                          placeholder="Write a reply..."
+                          placeholderTextColor="#555"
+                          value={replyText[post.id] ?? ''}
+                          onChangeText={(t) => setReplyText((prev) => ({ ...prev, [post.id]: t }))}
+                          multiline
+                        />
+                        <TouchableOpacity
+                          style={styles.replyPostBtn}
+                          onPress={() => handlePostReply(post.id)}
+                          disabled={replyPosting[post.id]}
+                          activeOpacity={0.85}
+                        >
+                          {replyPosting[post.id] ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                          ) : (
+                            <Ionicons name="send" size={16} color="#fff" />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              ))
+            )}
+
+            {/* New post input */}
+            <View style={styles.newPostRow}>
+              <TextInput
+                style={styles.newPostInput}
+                placeholder="Start a discussion..."
+                placeholderTextColor="#555"
+                value={newPost}
+                onChangeText={setNewPost}
+                multiline
+              />
+              <TouchableOpacity
+                style={styles.newPostBtn}
+                onPress={handlePostDiscussion}
+                disabled={posting}
+                activeOpacity={0.85}
+              >
+                {posting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Ionicons name="send" size={18} color="#fff" />
+                )}
               </TouchableOpacity>
             </View>
-          ) : clips.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🎤</Text>
-              <Text style={styles.emptyText}>No clips of {artist} yet.</Text>
-              <Text style={styles.emptySubText}>Been to one of their shows? Upload the first one. 🎤</Text>
-            </View>
-          ) : viewMode === 'grid' ? (
-            <FlatList
-              data={clips}
-              keyExtractor={(item) => item.id}
-              numColumns={2}
-              scrollEnabled={false}
-              columnWrapperStyle={styles.gridRow}
-              renderItem={renderGridCard}
-            />
-          ) : (
-            clips.map(renderClipCard)
-          )}
-        </View>
+          </View>
+        )}
 
 
       </ScrollView>
@@ -726,4 +967,129 @@ const styles = StyleSheet.create({
     borderColor: '#8B5CF6',
   },
   retryText: { color: '#8B5CF6', fontWeight: '700' },
+  addArtistBtn: {
+    marginTop: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(139,92,246,0.15)',
+    borderWidth: 1,
+    borderColor: '#8B5CF6',
+  },
+  addArtistBtnText: { color: '#8B5CF6', fontWeight: '700', fontSize: 14 },
+  // Tab bar
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: '#111',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#222',
+    overflow: 'hidden',
+  },
+  tabBarBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+  },
+  tabBarBtnActive: {
+    backgroundColor: 'rgba(139,92,246,0.15)',
+  },
+  tabBarLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#666',
+  },
+  tabBarLabelActive: {
+    color: '#8B5CF6',
+  },
+  // Discussion
+  postCard: {
+    backgroundColor: '#111',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#222',
+    padding: 14,
+    marginBottom: 10,
+  },
+  postHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  postUsername: { color: '#8B5CF6', fontWeight: '700', fontSize: 13 },
+  postTime: { color: '#444', fontSize: 11 },
+  postBody: { color: '#ddd', fontSize: 14, lineHeight: 20 },
+  replyToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+  },
+  replyToggleText: { color: '#666', fontSize: 12 },
+  repliesContainer: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#222' },
+  replyCard: {
+    backgroundColor: '#161616',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 6,
+  },
+  replyUsername: { color: '#8B5CF6', fontWeight: '600', fontSize: 12, marginBottom: 3 },
+  replyBody: { color: '#bbb', fontSize: 13 },
+  replyInputRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    alignItems: 'flex-end',
+  },
+  replyInput: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+    color: '#fff',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    maxHeight: 80,
+  },
+  replyPostBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newPostRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+    alignItems: 'flex-end',
+  },
+  newPostInput: {
+    flex: 1,
+    backgroundColor: '#111',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+    color: '#fff',
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    fontSize: 14,
+    maxHeight: 100,
+  },
+  newPostBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
