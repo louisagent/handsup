@@ -14,18 +14,14 @@ import {
 import { LazyImage } from '../components/LazyImage';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Clip, Profile } from '../types';
+import { Clip, Profile, Event } from '../types';
 import { searchClips, getTrendingArtists } from '../services/clips';
 import { searchProfiles, getSuggestedUsers } from '../services/profiles';
 import { isFollowing, followUser, unfollowUser } from '../services/follows';
 import { SkeletonSearchRow } from '../components/SkeletonCard';
 import { trackEvent } from '../services/analytics';
-import { festivals } from '../data/eventsData';
+import { getEvents } from '../services/events';
 import { getCachedLocation, haversineDistance } from '../services/location';
-
-const partnerFestivalNames = new Set(
-  festivals.filter((f) => f.is_partner).map((f) => f.name.toLowerCase())
-);
 
 const RECENT_SEARCHES_KEY = 'handsup_recent_searches';
 const MAX_RECENT = 5;
@@ -318,6 +314,7 @@ export default function SearchScreen({ navigation, route }: any) {
   const [suggestedUsers, setSuggestedUsers] = useState<Profile[]>([]);
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   const [followLoadingMap, setFollowLoadingMap] = useState<Record<string, boolean>>({});
+  const [allEvents, setAllEvents] = useState<Event[]>([]);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autocompleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -335,6 +332,8 @@ export default function SearchScreen({ navigation, route }: any) {
       .catch(() => {});
     loadRecentSearches().then(setRecentSearches);
     getSuggestedUsers().then(setSuggestedUsers).catch(() => {});
+    // Load events from Supabase
+    getEvents().then(setAllEvents).catch(() => {});
     // If initialQuery was passed (e.g. from hashtag tap), run search immediately
     if (route?.params?.initialQuery) {
       doSearch(route.params.initialQuery, category);
@@ -542,15 +541,21 @@ export default function SearchScreen({ navigation, route }: any) {
   const filteredResults = category !== 'Users' ? filterByDuration(results) : results;
   const totalResults = category === 'Users' ? userResults.length : filteredResults.length;
 
+  // Partner festival names for badge display in search results
+  const partnerFestivalNames = React.useMemo(
+    () => new Set(allEvents.filter((e) => e.is_partner).map((e) => e.name.toLowerCase())),
+    [allEvents]
+  );
+
   // Festivals sorted by distance (shown when Festivals category selected, before searching)
+  // Note: lat/lng columns not yet added to Supabase events — sort by partner status for now
   const sortedFestivals = React.useMemo(() => {
-    if (userLat === null || userLng === null) return festivals;
-    return [...festivals].sort((a, b) => {
-      const da = (a.lat != null && a.lng != null) ? haversineDistance(userLat, userLng, a.lat, a.lng) : Infinity;
-      const db = (b.lat != null && b.lng != null) ? haversineDistance(userLat, userLng, b.lat, b.lng) : Infinity;
-      return da - db;
+    return [...allEvents].sort((a, b) => {
+      if (a.is_partner && !b.is_partner) return -1;
+      if (!a.is_partner && b.is_partner) return 1;
+      return 0;
     });
-  }, [userLat, userLng]);
+  }, [allEvents]);
 
   return (
     <View style={styles.container}>
@@ -737,16 +742,17 @@ export default function SearchScreen({ navigation, route }: any) {
           data={sortedFestivals}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => {
-            const dist = (item.lat != null && item.lng != null && userLat !== null && userLng !== null)
-              ? haversineDistance(userLat, userLng, item.lat, item.lng)
-              : null;
             return (
               <TouchableOpacity
                 style={festivalStyles.card}
                 onPress={() => navigation.navigate('EventDetail', { event: item })}
                 activeOpacity={0.85}
               >
-                <Image source={{ uri: item.image }} style={festivalStyles.image} />
+                {item.image_url ? (
+                  <Image source={{ uri: item.image_url }} style={festivalStyles.image} />
+                ) : (
+                  <View style={[festivalStyles.image, { backgroundColor: '#1a1a2e' }]} />
+                )}
                 {item.is_private && (
                   <View style={festivalStyles.privateBadge}>
                     <Text style={festivalStyles.privateBadgeText}>🔒</Text>
@@ -754,13 +760,10 @@ export default function SearchScreen({ navigation, route }: any) {
                 )}
                 <View style={festivalStyles.info}>
                   <Text style={festivalStyles.name}>{item.name}</Text>
-                  <Text style={festivalStyles.location}>📍 {item.location}, {item.country}</Text>
-                  {dist !== null && dist < 500 && (
-                    <Text style={festivalStyles.distance}>{Math.round(dist)}km away</Text>
-                  )}
+                  <Text style={festivalStyles.location}>📍 {item.city}, {item.country}</Text>
                 </View>
                 <View style={festivalStyles.clips}>
-                  <Text style={festivalStyles.clipsCount}>{item.clipCount}</Text>
+                  <Text style={festivalStyles.clipsCount}>{item.clip_count}</Text>
                   <Text style={festivalStyles.clipsLabel}>clips</Text>
                 </View>
               </TouchableOpacity>

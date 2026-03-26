@@ -1,15 +1,13 @@
 {
   "version": 2,
   "name": "handsup",
-  "builds": [
-    {
-      "src": "**/*.html",
-      "use": "@vercel/static"
-    }
-  ],
   "routes": [
     { "src": "/privacy", "dest": "/privacy.html" },
     { "src": "/support", "dest": "/support.html" },
+    { "src": "/terms", "dest": "/terms.html" },
+    { "src": "/dmca", "dest": "/dmca.html" },
+    { "src": "/partner", "dest": "/partner.html" },
+    { "src": "/clip/([^/]+)", "dest": "/clip.html" },
     { "src": "/", "dest": "/index.html" }
   ],
   "headers": [

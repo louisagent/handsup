@@ -18,7 +18,7 @@ import {
 import { getLeaderboard, getLeaderboardByEvent } from '../services/clips';
 import { Clip } from '../types';
 import { supabase } from '../services/supabase';
-import { festivals } from '../data/eventsData';
+import { getEvents } from '../services/events';
 
 const { width } = Dimensions.get('window');
 
@@ -118,9 +118,6 @@ function SkeletonRow() {
 
 // ── Main Screen ────────────────────────────────────────────
 
-// Top 5 festival names for the event filter
-const TOP_FESTIVAL_NAMES = festivals.slice(0, 5).map((f) => f.name);
-
 export default function LeaderboardScreen() {
   const [period, setPeriod] = useState<Period>('all');
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
@@ -130,6 +127,7 @@ export default function LeaderboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUsername, setCurrentUsername] = useState<string | null>(null);
+  const [topFestivalNames, setTopFestivalNames] = useState<string[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -144,6 +142,11 @@ export default function LeaderboardScreen() {
         // ignore
       }
     })();
+
+    // Load top festival names from Supabase for the event filter
+    getEvents().then((events) => {
+      setTopFestivalNames(events.slice(0, 5).map((e) => e.name));
+    }).catch(() => {});
   }, []);
 
   const load = useCallback(async (p: Period, event: string | null) => {
@@ -242,7 +245,7 @@ export default function LeaderboardScreen() {
         {/* Event picker dropdown */}
         {showEventPicker && (
           <View style={styles.eventDropdown}>
-            {TOP_FESTIVAL_NAMES.map((name) => (
+            {topFestivalNames.map((name) => (
               <TouchableOpacity
                 key={name}
                 style={[styles.eventDropdownItem, selectedEvent === name && styles.eventDropdownItemActive]}

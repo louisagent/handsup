@@ -7,7 +7,6 @@
     "icon": "./assets/icon.png",
     "scheme": "handsup",
     "userInterfaceStyle": "dark",
-    "privacy": "public",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -45,7 +44,7 @@
         }
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundColor": "#1a0a2e"
       },
       "predictiveBackGestureEnabled": false,

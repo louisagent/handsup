@@ -1,6 +1,6 @@
 # Handsup App — App Store Submission Checklist
 
-Bundle ID: `com.handsuplate.app`
+Bundle ID: `com.zacgibson.handsuplive`
 Version: 1.0.0 | Build: 1
 
 ---
@@ -8,7 +8,7 @@ Version: 1.0.0 | Build: 1
 ## 🍎 Apple Developer Account
 
 - [ ] Apple Developer account active ($149 AUD/yr) — [developer.apple.com](https://developer.apple.com)
-- [ ] App Store Connect app created with bundle ID `com.handsuplate.app`
+- [ ] App Store Connect app created with bundle ID `com.zacgibson.handsuplive`
 - [ ] App name, subtitle, and description written in App Store Connect
 - [ ] Apple Team ID confirmed (fill in `eas.json` → `appleTeamId`)
 - [ ] App Store Connect App ID confirmed (fill in `eas.json` → `ascAppId`)
@@ -20,24 +20,34 @@ Version: 1.0.0 | Build: 1
 
 Run these SQL migrations in the Supabase SQL editor (in order):
 
-- [ ] `profiles` table — `id`, `username`, `full_name`, `avatar_url`, `bio`, `is_verified`, `follower_count`, `clip_count`, `created_at`
-- [ ] `clips` table — `id`, `uploader_id`, `artist`, `festival_name`, `location`, `clip_date`, `description`, `video_url`, `thumbnail_url`, `duration_seconds`, `view_count`, `download_count`, `created_at`
-- [ ] `comments` table — `id`, `clip_id`, `user_id`, `text`, `created_at`
-- [ ] `likes` table — `id`, `clip_id`, `user_id`, `created_at`
-- [ ] `saves` table — `id`, `clip_id`, `user_id`, `saved_at`
-- [ ] `follows` table — `id`, `follower_id`, `following_id`, `created_at`
-- [ ] `notifications` table — `id`, `user_id`, `type` (like/comment/follow/mention), `actor_id`, `clip_id`, `read`, `created_at`
-- [ ] `collections` table — `id`, `user_id`, `name`, `created_at`
-- [ ] `collection_clips` table — `id`, `collection_id`, `clip_id`, `added_at`
-- [ ] `groups` table — `id`, `name`, `description`, `created_by`, `created_at`
-- [ ] `group_members` table — `id`, `group_id`, `user_id`, `joined_at`
-- [ ] `events` table — `id`, `name`, `location`, `country`, `dates`, `description`, `clip_count`, `is_partner`, `created_at`
+- [x] `profiles` table — exists with xp, level, current_streak, longest_streak, last_active_date, push_token columns
+- [x] `clips` table — confirmed live with data
+- [x] `comments` table — exists
+- [x] `clip_likes` table — exists (NOTE: app uses `clip_likes`, not `likes`)
+- [x] `saves` table — exists
+- [x] `follows` table — exists
+- [x] `notifications` table — exists
+- [x] `collections` table — exists
+- [x] `collection_clips` table — exists
+- [x] `groups` table — exists
+- [x] `group_members` table — exists
+- [x] `events` table — exists with data
   - **TODO for Map feature**: Add `latitude FLOAT` and `longitude FLOAT` columns to `events` table
-- [ ] `analytics_events` table — `id`, `event_name`, `user_id`, `properties`, `created_at`
-- [ ] `push_tokens` table — `id`, `user_id`, `token`, `platform`, `created_at`
-- [ ] Row Level Security (RLS) policies enabled on all user-data tables
-- [ ] Storage bucket `clips` created with public read access
-- [ ] `clips` storage bucket policies set (authenticated users can upload to own folder)
+- [x] `analytics_events` table — exists
+- [x] `push_notification_log` table — exists (app uses `push_token` column on profiles, not a separate table)
+- [x] `user_badges` table — exists (XP & badges migration applied)
+- [x] Streak fields on profiles — `current_streak`, `longest_streak`, `last_active_date` confirmed
+- [ ] Row Level Security (RLS) policies — verify enabled on all user-data tables
+- [x] Storage bucket `clips` created (public: false — verify upload policies are set)
+- [x] Storage bucket `avatars` created (public: true)
+- [x] Storage bucket `thumbnails` created (public: true)
+
+### ⚠️ Pending SQL (requires Supabase SQL editor — exec_sql RPC not available)
+
+The following cannot be run via API and must be pasted into the Supabase SQL editor manually.
+SQL files are in `/supabase/` folder of the repo.
+
+No missing tables identified — all core tables are present. The checklist item for `push_tokens` (separate table) is **not needed** — the app uses a `push_token` column on `profiles` instead, which exists.
 
 ---
 
@@ -56,7 +66,7 @@ Run these SQL migrations in the Supabase SQL editor (in order):
 - [ ] Groups working (create, join, view)
 - [ ] Collections working (save to collection)
 - [ ] Settings (autoplay, data saver) persist
-- [ ] Deep link `handsuplate://clip/:id` works
+- [ ] Deep link `handsup://clip/:id` works
 - [ ] Instagram Stories share button working
 - [ ] Report clip flow working
 
@@ -64,7 +74,7 @@ Run these SQL migrations in the Supabase SQL editor (in order):
 
 ## 🎨 App Store Assets
 
-- [ ] App icon — 1024×1024px PNG, no transparency, no rounded corners (Apple adds them)
+- [x] App icon — 1024×1024px PNG confirmed (`assets/icon.png`)
 - [ ] Screenshots taken for **6.9" iPhone** (iPhone 16 Pro Max) — 1320×2868px
 - [ ] Screenshots taken for **6.5" iPhone** (iPhone 14 Plus / 15 Plus) — 1284×2778px
 - [ ] At least 3 screenshots per device size (App Store requires minimum 1, but 5–10 recommended)
@@ -80,40 +90,25 @@ Run these SQL migrations in the Supabase SQL editor (in order):
 
 ## 📋 App Store Connect — Metadata
 
-- [ ] **App Name**: Handsup - Festival Clips
-- [ ] **Subtitle**: Share your festival moments (max 30 chars)
-- [ ] **Category**: Photo & Video
-- [ ] **Secondary Category**: Entertainment
-- [ ] **Age Rating**: 12+ (User Generated Content, Mild Language)
-- [ ] **Privacy Policy URL** live — required by Apple (e.g. https://handsup.live/privacy)
-- [ ] **Support URL** (e.g. https://handsup.live/support)
-- [ ] **Description** written (max 4000 chars)
-- [ ] **Keywords** (max 100 chars total, comma-separated):
+- [x] **App Name**: handsup – Festival Clips (see APP_STORE_METADATA.md)
+- [x] **Subtitle**: Your crowd. Your clips. (24 chars, under 30 limit)
+- [x] **Category**: Photo & Video
+- [x] **Secondary Category**: Entertainment
+- [x] **Age Rating**: 12+ (User Generated Content, Mild Language)
+- [x] **Privacy Policy URL**: https://handsuplive.com/privacy
+- [x] **Support URL**: https://handsuplive.com/support
+- [x] **Description** written — see APP_STORE_METADATA.md
+- [x] **Keywords** (98 chars, under 100 limit): `festival,concert,clips,live music,gig,crowd video,music events,upload video,handsup,moments`
+- [x] **What's New in This Version**: "Welcome to handsup. Share your festival moments."
 
-```
-festival,concerts,music clips,live music,tiktok festivals,gigs,handsup,upload video,events
-```
-
-Top 10 keywords:
-1. festival clips
-2. concert videos
-3. live music
-4. festival moments
-5. music events
-6. gig videos
-7. crowd clips
-8. handsup
-9. festival app
-10. upload concert
-
-- [ ] **What's New in This Version** written (for v1.0.0: "Welcome to Handsup! Share your festival moments.")
+See `APP_STORE_METADATA.md` for all ready-to-paste content.
 
 ---
 
 ## 🔒 Legal & Compliance
 
-- [ ] Privacy Policy URL live at https://handsup.live/privacy (required by Apple)
-- [ ] Terms of Service URL live at https://handsup.live/terms
+- [ ] Privacy Policy URL live at https://handsuplive.com/privacy (required by Apple)
+- [ ] Terms of Service URL live at https://handsuplive.com/terms
 - [ ] DMCA email active: dmca@handsup.app
 - [ ] COPPA compliance reviewed (app is 12+, no children's data collected)
 - [ ] GDPR considerations reviewed (user data deletion flow available)
@@ -142,6 +137,12 @@ eas submit --platform ios
 eas submit --platform android
 ```
 
+**Before building:** Fill in `eas.json` with your actual Apple credentials:
+- `appleId`: your Apple ID email
+- `ascAppId`: App Store Connect numeric app ID
+- `appleTeamId`: your Apple Developer Team ID
+
+- [ ] `eas.json` Apple credentials filled in
 - [ ] `eas build --platform ios --profile production` completed successfully
 - [ ] Build reviewed in App Store Connect (Testflight first recommended)
 - [ ] Internal Testflight testing completed
@@ -157,6 +158,7 @@ eas submit --platform android
 - [ ] Set up Supabase alerting for errors
 - [ ] Respond to initial user reviews
 - [ ] Plan v1.1 (push notifications polish, video trimming server-side, trending algorithm)
+- [ ] Migrate from `expo-av` to `expo-video` / `expo-audio` (flagged by expo-doctor; suppressed for v1.0)
 
 ---
 

@@ -12,9 +12,31 @@ import {
   Alert,
 } from 'react-native';
 import { supabase } from '../services/supabase';
-import { festivals, FestivalEvent } from '../data/eventsData';
+import { FestivalEvent } from '../data/eventsData';
 import { getCachedLocation, haversineDistance } from '../services/location';
-import { joinPrivateEvent, getMyEventMemberships } from '../services/events';
+import { getEvents, joinPrivateEvent, getMyEventMemberships } from '../services/events';
+import { Event } from '../types';
+
+// Map Supabase Event → FestivalEvent shape used by this screen
+function mapEvent(e: Event): FestivalEvent {
+  return {
+    id: e.id,
+    name: e.name,
+    location: e.city,
+    country: e.country,
+    dates: e.start_date ? new Date(e.start_date).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' }) : '',
+    description: e.description ?? '',
+    genre: e.genre_tags ?? [],
+    clipCount: e.clip_count ?? 0,
+    attendees: e.attendee_estimate ?? '',
+    image: e.image_url ?? `https://picsum.photos/seed/${e.slug}/600/300`,
+    upcoming: e.is_upcoming ?? false,
+    is_partner: e.is_partner ?? false,
+    is_private: e.is_private ?? false,
+    invite_code: e.invite_code,
+    created_by: e.created_by,
+  };
+}
 
 const timeFilters = ['All', 'Upcoming', 'Past'];
 const locationFilters = ['All', 'Australia', 'International'];
@@ -55,6 +77,8 @@ function FeaturedCard({ item, onPress }: { item: FestivalEvent; onPress: () => v
 export default function EventsScreen({ navigation }: any) {
   const goToEvent = (event: FestivalEvent) =>
     navigation.navigate('EventDetail', { event });
+  const [festivals, setFestivals] = useState<FestivalEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('All');
   const [activeTimeFilter, setActiveTimeFilter] = useState('All');
   const [nearMeActive, setNearMeActive] = useState(false);
@@ -71,22 +95,17 @@ export default function EventsScreen({ navigation }: any) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [memberEventIds, setMemberEventIds] = useState<string[]>([]);
 
-  // Supabase events (for private events from DB)
-  const [dbPrivateEvents, setDbPrivateEvents] = useState<FestivalEvent[]>([]);
-
   useEffect(() => {
+    // Load events from Supabase
+    getEvents().then((events) => {
+      setFestivals(events.map(mapEvent));
+    }).catch(() => {}).finally(() => setEventsLoading(false));
+
     // Load user location
     getCachedLocation().then((loc) => {
       if (loc) {
         setUserLat(loc.latitude);
         setUserLng(loc.longitude);
-        const distances: Record<string, number> = {};
-        festivals.forEach((f) => {
-          if (f.lat != null && f.lng != null) {
-            distances[f.id] = haversineDistance(loc.latitude, loc.longitude, f.lat, f.lng);
-          }
-        });
-        setEventDistances(distances);
       }
     });
 
