@@ -4,6 +4,78 @@
 
 ---
 
+## Round 3 — 2026-03-27
+
+### ✅ TASK 1 — Fix UploadScreen: private bucket → signed URL
+- `uploadVideoWithProgress` now returns the **storage path** (`user-id/timestamp-artist.mp4`) instead of a hardcoded public URL.
+- After XHR upload completes, a 1-year signed URL is generated via `supabase.storage.from('clips').createSignedUrl(storagePath, 31536000)`.
+- The signed URL is stored as `video_url` in the clips table.
+- If signed URL generation fails, the storage path is stored as a fallback (handled by `resolveVideoUrl` at read time).
+- Thumbnail logic unchanged — thumbnails bucket remains public.
+
+### ✅ TASK 2 — Wire MapScreen to Supabase
+- MapScreen now loads events from Supabase via `getEvents()` in a `useEffect`.
+- `FESTIVAL_COORDS` lookup object added (keyed by event name) covering all 15 known events.
+- `supabaseEventToMapEvent()` merges Supabase event with FESTIVAL_COORDS for lat/lng.
+- Falls back to local `eventsData.ts` if Supabase returns nothing or errors.
+- `MapEvent` interface updated (no longer extends `FestivalEvent` — now has `originalEvent` and `supabaseEvent` refs).
+- `handleViewEvent` prefers Supabase event, falls back to local FestivalEvent for navigation.
+- Map markers, search, animations all work correctly with the new shape.
+
+### ✅ TASK 3 — EventDetailScreen compatibility shim
+- Added `normaliseEvent()` function that accepts either `FestivalEvent` (local) or Supabase `Event` and normalises to `FestivalEvent` shape.
+- Maps: `image_url → image`, `is_upcoming → upcoming`, `clip_count → clipCount`, `attendee_estimate → attendees`, `genre_tags → genre`, `start_date/end_date → dates`.
+- EventDetailScreen now works whether navigated from MapScreen (Supabase or local event), EventsScreen (Supabase event mapped to FestivalEvent shape), or directly.
+- TypeScript: zero errors (`tsc --noEmit` clean).
+
+### ✅ TASK 4 — lat/lng update script
+- Created `scripts/update-event-coords.js`.
+- Includes usage instructions for the required `ALTER TABLE` migration.
+- Uses service role key to PATCH all 11 known festival coords.
+- Uses Node.js built-in fetch (no npm install needed — requires Node 18+).
+
+### ✅ TASK 5 — resolveVideoUrl for clips
+- Added `getSignedUrl(path, expiresIn)` helper in `src/services/clips.ts`.
+- Added `resolveVideoUrl(clip)` that handles 3 cases:
+  - Signed URL (has `token=`): returned as-is
+  - Public URL (`/object/public/clips/...`): path extracted, signed URL generated
+  - Storage path (`user-id/file.mp4` or `clips/...`): signed URL generated directly
+- Both functions exported for use across the app.
+- `VerticalFeedScreen.tsx` FeedItem now calls `resolveVideoUrl` on mount and uses the resolved URL as the Video source — clips from the private bucket will now play.
+
+### ✅ TASK 6 — AuthScreen error handling polish
+- Added `friendlyError()` mapper that converts cryptic Supabase error messages to user-friendly strings:
+  - Wrong password → "Incorrect email or password. Please try again."
+  - Email not confirmed → "Please verify your email address before signing in."
+  - Email already registered → "An account with this email already exists. Try signing in."
+  - Username taken → "That username is taken. Please choose a different one."
+  - Weak password → "Password must be at least 6 characters."
+  - Rate limit → "Too many attempts. Please wait a moment and try again."
+  - Network error → "Network error. Check your connection and try again."
+- Added client-side validation: username ≥ 3 chars, password ≥ 6 chars for sign up.
+- `Keyboard.dismiss()` called on submit.
+- `email.trim()`, `password.trim()`, `username.trim()` applied before use.
+- Loading spinner already present — no changes needed there.
+
+### ✅ TASK 7 — Git commit
+```
+7854887 Launch prep round 3: signed URLs, MapScreen Supabase, EventDetail compat shim, video URL resolver
+```
+7 files changed, 370 insertions(+), 39 deletions(-)
+
+---
+
+### Remaining Blockers After Round 3
+
+1. **Apple Developer credentials** — `eas.json` still has placeholder values (`APPLE_ID_HERE`, etc.)
+2. **Privacy Policy & Terms URLs must be live** — https://handsuplive.com/privacy and /terms
+3. **lat/lng DB migration** — Still needs `ALTER TABLE events ADD COLUMN latitude/longitude` in Supabase SQL editor, then run `node scripts/update-event-coords.js`
+4. **Screenshots** not taken
+5. **App Store Connect app** not created
+6. **Signed URLs expire** — 1-year signed URLs in the clips table will eventually expire. A background refresh mechanism (via `resolveVideoUrl`) is wired but the expired URLs stored in the DB won't auto-refresh. Consider a cron job or a DB function that regenerates them, or switch to storing storage paths instead of signed URLs long-term.
+
+---
+
 ## Round 2 — 2026-03-27
 
 ### ✅ TASK 1 — Seed Real Events into Supabase
