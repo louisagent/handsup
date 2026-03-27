@@ -32,6 +32,7 @@ import { uploadClip } from '../services/clips';
 import { trackEvent } from '../services/analytics';
 import { notifyFollowersOfNewClip } from '../services/notifications';
 import { splitByHashtags } from '../utils/tags';
+import { detectTrackForClip } from '../services/acrcloud';
 
 const LAST_EVENT_KEY = 'handsup_last_upload_event';
 
@@ -420,6 +421,19 @@ export default function UploadScreen({ route }: any) {
         track_artist: trackArtist.trim() || undefined,
         track_id_status: (trackName.trim() && trackArtist.trim()) ? 'confirmed' : 'unknown',
       } as any);
+
+      // ── ACRCloud track detection (fire and forget) ──────────
+      if (uploadedClip?.id && videoUrl) {
+        detectTrackForClip(uploadedClip.id, videoUrl)
+          .then((result) => {
+            if (result.matched) {
+              console.log(`[ACRCloud] Track detected: ${result.track_artist} – ${result.track_name}`);
+            }
+          })
+          .catch(() => {
+            // Silent fail — community suggestions still available
+          });
+      }
 
       setSubmittedArtist(artist);
       setSubmittedFestival(festival);

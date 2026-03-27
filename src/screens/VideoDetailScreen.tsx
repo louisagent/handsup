@@ -1042,24 +1042,48 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
             </Text>
           ) : null}
 
-          {/* ── Track ID Row ── */}
-          <TrackIdRow
-            clip={video}
-            isUploader={currentUserId === video.uploader_id}
-            onUpdate={async () => {
-              // Reload clip from Supabase to get latest track info
-              try {
-                const { data } = await supabase
-                  .from('clips')
-                  .select('*')
-                  .eq('id', video.id)
-                  .single();
-                if (data) setVideo((prev) => ({ ...prev, ...data }));
-              } catch {
-                // silently fail
-              }
-            }}
-          />
+          {/* ── Track ID Section ── */}
+          {video.track_id_status === 'confirmed' && video.track_name ? (
+            <View style={styles.autoDetectedCard}>
+              <View style={styles.autoDetectedHeader}>
+                <Text style={styles.autoDetectedEmoji}>🎵</Text>
+                <View style={styles.autoDetectedInfo}>
+                  <Text style={styles.autoDetectedTrack} numberOfLines={1}>
+                    {video.track_artist ? `${video.track_artist} — ` : ''}{video.track_name}
+                  </Text>
+                  <Text style={styles.autoDetectedLabel}>Auto-detected</Text>
+                </View>
+                {video.track_streaming_url && (
+                  <TouchableOpacity
+                    style={styles.openSpotifyBtn}
+                    onPress={() => Linking.openURL(video.track_streaming_url!)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="musical-notes" size={14} color="#1DB954" />
+                    <Text style={styles.openSpotifyText}>Open</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          ) : (
+            <TrackIdRow
+              clip={video}
+              isUploader={currentUserId === video.uploader_id}
+              onUpdate={async () => {
+                // Reload clip from Supabase to get latest track info
+                try {
+                  const { data } = await supabase
+                    .from('clips')
+                    .select('*')
+                    .eq('id', video.id)
+                    .single();
+                  if (data) setVideo((prev) => ({ ...prev, ...data }));
+                } catch {
+                  // silently fail
+                }
+              }}
+            />
+          )}
 
           {/* ── Scarcity badge ── */}
           {setClipCount !== null && setClipCount <= 3 && (
@@ -2136,6 +2160,55 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   uploadPromptBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+
+  // Auto-detected track card
+  autoDetectedCard: {
+    backgroundColor: '#0d1a12',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1DB95433',
+    padding: 14,
+    marginBottom: 16,
+  },
+  autoDetectedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  autoDetectedEmoji: {
+    fontSize: 22,
+  },
+  autoDetectedInfo: {
+    flex: 1,
+  },
+  autoDetectedTrack: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  autoDetectedLabel: {
+    color: '#1DB954',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  openSpotifyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#1DB95420',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1DB95433',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  openSpotifyText: {
+    color: '#1DB954',
+    fontSize: 13,
+    fontWeight: '700',
+  },
 
   // Scarcity badge
   scarcityBadge: {

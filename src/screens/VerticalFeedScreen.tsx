@@ -378,14 +378,32 @@ function FeedItem({ item, isVisible, isMuted, onToggleMute, navigation }: FeedIt
           style={styles.bottomInfoArea}
         >
           <Text style={styles.artistName}>{item.artist}</Text>
-          <View style={styles.trackIdPill}>
-            <Text style={styles.trackIdLabel}>ID: </Text>
-            <Text style={styles.trackIdValue} numberOfLines={1}>
-              {item.track_name && item.track_artist
-                ? `${item.track_artist} – ${item.track_name}`
-                : 'Unknown'}
-            </Text>
-          </View>
+          {/* Music credit pill — TikTok style */}
+          {item.track_name ? (
+            <TouchableOpacity
+              style={styles.musicPill}
+              onPress={() => {
+                if (item.track_streaming_url) {
+                  const { Linking } = require('react-native');
+                  Linking.openURL(item.track_streaming_url).catch(() => {});
+                } else {
+                  navigation.navigate('VideoDetail', { video: item });
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.musicPillIcon}>🎵</Text>
+              <Text style={styles.musicPillText} numberOfLines={1}>
+                {item.track_artist ? `${item.track_artist} — ${item.track_name}` : item.track_name}
+              </Text>
+              <Text style={styles.musicPillArrow}>›</Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.trackIdPill}>
+              <Text style={styles.trackIdLabel}>ID: </Text>
+              <Text style={styles.trackIdValue} numberOfLines={1}>Unknown</Text>
+            </View>
+          )}
           <Text style={styles.festivalName}>{item.festival_name}</Text>
           <Text style={styles.uploaderName}>@{uploaderName}</Text>
         </TouchableOpacity>
@@ -742,6 +760,37 @@ const styles = StyleSheet.create({
     color: '#fff',
     ...SHADOW,
   },
+  // TikTok-style music pill (shown when track_name is set)
+  musicPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignSelf: 'flex-start',
+    maxWidth: 220,
+    borderWidth: 1,
+    borderColor: 'rgba(29,185,84,0.35)',
+    gap: 5,
+    marginTop: 4,
+  },
+  musicPillIcon: {
+    fontSize: 12,
+  },
+  musicPillText: {
+    fontSize: 12,
+    color: '#e0ffe8',
+    fontWeight: '600',
+    flex: 1,
+    ...SHADOW,
+  },
+  musicPillArrow: {
+    color: '#1DB954',
+    fontSize: 16,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
   trackIdPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -752,6 +801,7 @@ const styles = StyleSheet.create({
     maxWidth: 160,
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.4)',
+    marginTop: 4,
   },
   trackIdLabel: {
     fontSize: 10,
