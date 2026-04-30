@@ -403,15 +403,35 @@ export default function ArtistScreen({ route, navigation }: any) {
             </View>
           )}
 
-          {/* Claim this page button */}
+          {/* Claim this profile button */}
           {!artistClaim && !myClaim && (
             <TouchableOpacity
               style={styles.claimBtn}
-              onPress={() => navigation.navigate('ArtistClaim', { artistName: artist })}
+              onPress={() => {
+                Alert.alert(
+                  `Claim ${artist}’s Profile`,
+                  'How would you like to proceed?',
+                  [
+                    {
+                      text: 'Submit Claim Request',
+                      onPress: () => navigation.navigate('ArtistClaim', { artistName: artist }),
+                    },
+                    {
+                      text: 'Email Us',
+                      onPress: () => {
+                        const subject = encodeURIComponent(`Artist Profile Claim: ${artist}`);
+                        const body = encodeURIComponent(`Hi, I am ${artist} and would like to claim my profile on Handsup.`);
+                        Linking.openURL(`mailto:hello@handsuplive.com?subject=${subject}&body=${body}`);
+                      },
+                    },
+                    { text: 'Cancel', style: 'cancel' },
+                  ]
+                );
+              }}
               activeOpacity={0.85}
             >
               <Ionicons name="shield-checkmark-outline" size={16} color="#8B5CF6" />
-              <Text style={styles.claimBtnText}>Are you {artist}? Claim this page</Text>
+              <Text style={styles.claimBtnText}>Are you {artist}? Claim this profile</Text>
             </TouchableOpacity>
           )}
 

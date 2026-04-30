@@ -231,15 +231,10 @@ export const SwipeableClipCard: React.FC<Props> = ({
             ) : (
               <View style={[styles.thumbnail, styles.placeholderThumb]} />
             )}
-            {video.duration_seconds != null && (
-              <View style={styles.durationBadge}>
-                <Text style={styles.durationText}>{video.duration_seconds}s</Text>
-              </View>
-            )}
           </View>
 
           {/* Stats bar — directly below thumbnail; hidden when all counts are 0 */}
-          {((video.view_count ?? 0) > 0 || video.download_count > 0 || (video.repost_count ?? 0) > 0 || video.duration_seconds != null) && (
+          {((video.view_count ?? 0) > 0 || video.download_count > 0 || (video.repost_count ?? 0) > 0) && (
             <View style={styles.statsBar}>
               {/* Views as PRIMARY stat */}
               {(video.view_count ?? 0) > 0 && (
@@ -268,22 +263,13 @@ export const SwipeableClipCard: React.FC<Props> = ({
                 </>
               )}
               {(video.repost_count ?? 0) > 0 && (
-                <>
-                  <View style={styles.statCol}>
-                    <Text style={[styles.statValue, styles.repostValue]}>
-                      🔁 {(video.repost_count ?? 0).toLocaleString()}
-                    </Text>
-                    <Text style={styles.statLabel}>Reposts</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                </>
+                <View style={styles.statCol}>
+                  <Text style={[styles.statValue, styles.repostValue]}>
+                    🔁 {(video.repost_count ?? 0).toLocaleString()}
+                  </Text>
+                  <Text style={styles.statLabel}>Reposts</Text>
+                </View>
               )}
-              <View style={styles.statCol}>
-                <Text style={styles.statValue}>
-                  {video.duration_seconds != null ? `${video.duration_seconds}s` : '—'}
-                </Text>
-                <Text style={styles.statLabel}>Duration</Text>
-              </View>
             </View>
           )}
 
@@ -375,16 +361,6 @@ const styles = StyleSheet.create({
   thumbnailContainer: { position: 'relative' },
   thumbnail: { width: '100%', aspectRatio: 9/16, backgroundColor: '#161616' },
   placeholderThumb: { backgroundColor: '#2a2a2a' },
-  durationBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  durationText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 
   // Stats bar — compact 3-column directly below thumbnail
   statsBar: {

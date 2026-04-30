@@ -379,7 +379,14 @@ function FeedItem({ item, isVisible, isMuted, onToggleMute, navigation }: FeedIt
           activeOpacity={0.9}
           style={styles.bottomInfoArea}
         >
-          <Text style={styles.artistName}>{item.artist}</Text>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Artist', { artist: item.artist })}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.artistName, { textDecorationLine: 'underline' }]} numberOfLines={1}>
+              {item.artist}
+            </Text>
+          </TouchableOpacity>
           {/* Music credit pill — TikTok style */}
           {item.track_name ? (
             <TouchableOpacity

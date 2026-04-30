@@ -15,6 +15,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { submitArtistClaim } from '../services/artistClaim';
@@ -160,6 +161,13 @@ export default function ArtistClaimScreen({ route, navigation }: any) {
           <Ionicons name="information-circle-outline" size={16} color="#555" />
           <Text style={styles.infoText}>
             Claims are reviewed by the Handsup team. We may ask for proof of identity before approving.
+            {' '}Need help? Contact{' '}
+            <Text
+              style={{ color: '#8B5CF6', fontWeight: '600', textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL('mailto:hello@handsuplive.com')}
+            >
+              hello@handsuplive.com
+            </Text>
           </Text>
         </View>
 

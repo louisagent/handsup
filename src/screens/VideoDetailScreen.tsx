@@ -967,7 +967,9 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
           {/* Title + Follow */}
           <View style={styles.artistRow}>
             <View style={styles.artistNameRow}>
-              <Text style={styles.artist}>{video.artist}</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Artist', { artist: video.artist })} activeOpacity={0.7}>
+                <Text style={[styles.artist, { textDecorationLine: 'underline' }]}>{video.artist}</Text>
+              </TouchableOpacity>
               {video.track_name && video.track_artist ? (
                 <TouchableOpacity
                   style={styles.trackIdChip}
