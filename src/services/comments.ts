@@ -77,7 +77,7 @@ export async function deleteComment(commentId: string): Promise<void> {
 }
 
 // Comment reactions
-const REACTION_EMOJIS = ['❤️', '😂', '🔥', '😮', '👏', '🙌'] as const;
+const REACTION_EMOJIS = ['❤️', '😂', '🔥', '😮'] as const;
 
 export async function toggleCommentReaction(commentId: string, emoji: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
