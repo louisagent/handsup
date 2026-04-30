@@ -55,11 +55,16 @@ export const BADGES: Record<string, { label: string; emoji: string; description:
   multi_festival:     { label: 'Festival Hopper',   emoji: '🎡', description: 'Uploaded from 3+ different festivals' },
   five_festivals:     { label: 'Festival Pro',      emoji: '🎠', description: 'Uploaded from 5+ different festivals' },
   ten_festivals:      { label: 'Festival Legend',   emoji: '🏆', description: 'Uploaded from 10+ different festivals' },
+  first_to_festival:  { label: 'First on the Scene', emoji: '🎯', description: 'First to upload from a festival' },
+  
+  // Early Adopters (exclusive, prestigious)
+  first_100:          { label: 'Founding 100',    emoji: '💎', description: 'Among the first 100 users' },
+  first_1000:         { label: 'Pioneer',         emoji: '🌟', description: 'Among the first 1,000 users' },
+  first_10000:        { label: 'Early Adopter',   emoji: '🔥', description: 'Among the first 10,000 users' },
   
   // Streaks & engagement
-  streak_7:           { label: '7-Day Streak',    emoji: '🔥', description: 'Logged in 7 days in a row' },
+  streak_7:           { label: '7-Day Streak',    emoji: '📅', description: 'Logged in 7 days in a row' },
   streak_30:          { label: '30-Day Streak',   emoji: '⚡', description: 'Logged in 30 days in a row' },
-  early_adopter:      { label: 'Early Adopter',   emoji: '🛸', description: 'Joined in the first wave' },
   verified_artist:    { label: 'Verified Artist', emoji: '✅', description: 'Verified as an artist' },
   first_comment:      { label: 'Commenter',       emoji: '💬', description: 'Left your first comment' },
   first_follow:       { label: 'Connected',       emoji: '🤝', description: 'Followed your first creator' },
@@ -158,4 +163,50 @@ export function levelProgress(xp: number, level: number): number {
   const next = xpForLevel(level + 1);
   if (next <= current) return 1;
   return Math.min(1, (xp - current) / (next - current));
+}
+
+// Check and award early adopter badges based on registration order
+export async function checkEarlyAdopterBadges(userId: string): Promise<void> {
+  try {
+    // Get user's registration rank (how many users joined before them)
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('created_at')
+      .eq('id', userId)
+      .single();
+
+    if (!userProfile?.created_at) return;
+
+    const { count } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .lt('created_at', userProfile.created_at);
+
+    const rank = (count ?? 0) + 1;
+
+    if (rank <= 100) await awardBadge(userId, 'first_100');
+    if (rank <= 1000) await awardBadge(userId, 'first_1000');
+    if (rank <= 10000) await awardBadge(userId, 'first_10000');
+  } catch {
+    // Silently fail
+  }
+}
+
+// Check and award first-to-festival badge
+export async function checkFirstToFestival(userId: string, festivalName: string): Promise<void> {
+  try {
+    // Check if this user was the first to upload to this festival
+    const { data: clips } = await supabase
+      .from('clips')
+      .select('uploader_id, created_at')
+      .ilike('festival_name', festivalName)
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    if (clips && clips.length > 0 && clips[0].uploader_id === userId) {
+      await awardBadge(userId, 'first_to_festival');
+    }
+  } catch {
+    // Silently fail
+  }
 }

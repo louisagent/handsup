@@ -157,53 +157,61 @@ export default function UserProfileScreen({ route, navigation }: any) {
   };
 
   const handleThreeDotMenu = () => {
-    Alert.alert(
-      'Options',
-      `@${profile?.username}`,
-      [
-        {
-          text: isMuted ? '🔈 Unmute user' : '🔇 Mute user',
-          onPress: handleMuteToggle,
-        },
-        {
-          text: '🚫 Block user',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Block User',
-              `Block @${profile?.username}? They won't be able to message you or see your profile.`,
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: 'Block',
-                  style: 'destructive',
-                  onPress: () => {
-                    // Call muteUser as a simple block mechanism for now
-                    muteUser(userId)
-                      .then(() => {
-                        setIsMuted(true);
-                        Alert.alert('Blocked', `You've blocked @${profile?.username}`);
-                      })
-                      .catch(() => {});
-                  },
+    const options: any[] = [
+      {
+        text: isMuted ? '🔈 Unmute user' : '🔇 Mute user',
+        onPress: handleMuteToggle,
+      },
+      {
+        text: '🚫 Block user',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert(
+            'Block User',
+            `Block @${profile?.username}? They won't be able to message you or see your profile.`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Block',
+                style: 'destructive',
+                onPress: () => {
+                  // Call muteUser as a simple block mechanism for now
+                  muteUser(userId)
+                    .then(() => {
+                      setIsMuted(true);
+                      Alert.alert('Blocked', `You've blocked @${profile?.username}`);
+                    })
+                    .catch(() => {});
                 },
-              ]
-            );
-          },
+              },
+            ]
+          );
         },
-        {
-          text: '🚩 Report user',
-          onPress: () => {
-            Alert.alert(
-              'Report User',
-              `To report @${profile?.username}, please email hello@handsuplive.com with details.`,
-              [{ text: 'OK' }]
-            );
-          },
+      },
+      {
+        text: '🚩 Report user',
+        onPress: () => {
+          Alert.alert(
+            'Report User',
+            `To report @${profile?.username}, please email hello@handsuplive.com with details.`,
+            [{ text: 'OK' }]
+          );
         },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+      },
+    ];
+
+    // Add Ban/Unban option for moderators
+    if (isModUser) {
+      options.splice(2, 0, {
+        text: isBanned ? '🛡️ Unban user' : '🛡️ Ban user',
+        style: 'destructive',
+        onPress: handleBanToggle,
+      });
+    }
+
+    options.push({ text: 'Cancel', style: 'cancel' });
+
+    Alert.alert('Options', `@${profile?.username}`, options);
   };
 
   const handleBanToggle = () => {
@@ -374,24 +382,6 @@ export default function UserProfileScreen({ route, navigation }: any) {
               <Text style={styles.supportBtnText}>☕ Support this creator</Text>
             </TouchableOpacity>
           )}
-
-          {/* Ban button — only shown to moderators on other users' profiles */}
-          {isModUser && currentUserId !== userId && (
-            <TouchableOpacity
-              style={[styles.banBtn, isBanned && styles.banBtnActive]}
-              onPress={handleBanToggle}
-              disabled={banLoading}
-              activeOpacity={0.85}
-            >
-              {banLoading ? (
-                <ActivityIndicator size="small" color="#EF4444" />
-              ) : (
-                <Text style={styles.banBtnText}>
-                  {isBanned ? '🛡️ Banned — Tap to Unban' : '🛡️ Ban User'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Stats */}
@@ -449,7 +439,21 @@ export default function UserProfileScreen({ route, navigation }: any) {
                   <TouchableOpacity
                     key={fest}
                     style={styles.festivalBadge}
-                    onPress={() => navigation.navigate('Search', { initialQuery: fest })}
+                    onPress={async () => {
+                      // Try to find event by name
+                      const { data } = await supabase
+                        .from('events')
+                        .select('*')
+                        .ilike('name', fest)
+                        .limit(1)
+                        .single();
+                      if (data) {
+                        navigation.navigate('EventDetail', { event: data });
+                      } else {
+                        // Fallback to search if event not found
+                        navigation.navigate('Search', { initialQuery: fest });
+                      }
+                    }}
                     activeOpacity={0.75}
                   >
                     <Text style={styles.festivalBadgeIcon}>📍</Text>
@@ -463,15 +467,18 @@ export default function UserProfileScreen({ route, navigation }: any) {
         })()}
 
         {/* Badges (earned only) */}
-        {userBadges.length > 0 && (
+        {(() => {
+          // Filter to only valid badges that exist in BADGES
+          const validBadges = userBadges.filter((key) => BADGES[key]);
+          if (validBadges.length === 0) return null;
+          return (
           <View style={styles.badgesSection}>
-            <Text style={styles.badgesTitle}>{userBadges.length} Achievement{userBadges.length !== 1 ? 's' : ''}</Text>
+            <Text style={styles.badgesTitle}>{validBadges.length} Badge{validBadges.length !== 1 ? 's' : ''}</Text>
             {/* Top 5 most recent badges (non-scrollable) */}
-            {userBadges.length > 0 && (
+            {validBadges.length > 0 && (
               <View style={styles.badgesTopRow}>
-                {userBadges.slice(0, 5).map((key) => {
+                {validBadges.slice(0, 5).map((key) => {
                   const badge = BADGES[key];
-                  if (!badge) return null;
                   return (
                     <View key={key} style={styles.badgeCompact}>
                       <Text style={styles.badgeEmojiCompact}>{badge.emoji}</Text>
@@ -486,9 +493,8 @@ export default function UserProfileScreen({ route, navigation }: any) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.badgesRow}
             >
-              {userBadges.map((key) => {
+              {validBadges.map((key) => {
                 const badge = BADGES[key];
-                if (!badge) return null;
                 return (
                   <View key={key} style={styles.badge}>
                     <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
@@ -498,7 +504,8 @@ export default function UserProfileScreen({ route, navigation }: any) {
               })}
             </ScrollView>
           </View>
-        )}
+          );
+        })()}
 
         {/* Clips section */}
         <View style={styles.section}>
