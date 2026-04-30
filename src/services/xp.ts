@@ -32,48 +32,48 @@ export const BADGES: Record<string, { label: string; emoji: string; description:
   first_download:         { label: 'First Download',  emoji: '⬇️', description: 'Got your first download' },
   ten_downloads:          { label: 'Getting Noticed', emoji: '👀', description: '10 people downloaded your clips' },
   fifty_downloads:        { label: 'Rising',          emoji: '📈', description: '50 downloads across your clips' },
-  hundred_downloads:      { label: 'Popular',         emoji: '🔥', description: '100 people downloaded your clips' },
+  hundred_downloads:      { label: 'Popular',         emoji: '📉', description: '100 people downloaded your clips' },
   five_hundred_downloads: { label: 'On Fire',         emoji: '🔥🔥', description: '500 downloads' },
   thousand_downloads:     { label: 'Viral',           emoji: '🚀', description: '1,000 downloads across your clips' },
-  five_thousand_downloads:{ label: 'Legendary',       emoji: '👑', description: '5,000 downloads' },
+  five_thousand_downloads:{ label: 'Legendary',       emoji: '🌟', description: '5,000 downloads' },
   ten_thousand_downloads: { label: 'Icon',            emoji: '⭐', description: '10,000 downloads' },
   fifty_thousand_downloads:{ label: 'Hall of Fame',   emoji: '🏆', description: '50,000 downloads' },
   
   // ═══ SINGLE VIDEO PERFORMANCE (Views on ONE clip) ═══
   hit_100_views:      { label: 'Hundred Club',   emoji: '👏', description: 'A clip hit 100 views' },
-  hit_500_views:      { label: 'Crowd Pleaser',  emoji: '🎉', description: 'A clip hit 500 views' },
+  hit_500_views:      { label: 'Crowd Pleaser',  emoji: '🎊', description: 'A clip hit 500 views' },
   hit_1k_views:       { label: 'Trending',       emoji: '📊', description: 'A clip hit 1K views' },
-  hit_5k_views:       { label: 'Going Viral',    emoji: '🔥', description: 'A clip hit 5K views' },
+  hit_5k_views:       { label: 'Going Viral',    emoji: '📈', description: 'A clip hit 5K views' },
   hit_10k_views:      { label: 'Viral Hit',      emoji: '💥', description: 'A clip hit 10K views' },
-  hit_50k_views:      { label: 'Mega Viral',     emoji: '🌟', description: 'A clip hit 50K views' },
-  hit_100k_views:     { label: 'Phenomenon',     emoji: '🚀', description: 'A clip hit 100K views' },
+  hit_50k_views:      { label: 'Mega Viral',     emoji: '🔥', description: 'A clip hit 50K views' },
+  hit_100k_views:     { label: 'Phenomenon',     emoji: '🎆', description: 'A clip hit 100K views' },
   hit_1m_views:       { label: 'Million Views',  emoji: '💎', description: 'A clip hit 1M views' },
   
   // ═══ TOTAL VIEWS (Across all clips) ═══
   total_1k_views:     { label: 'Seen',           emoji: '👁️', description: '1K total views' },
   total_10k_views:    { label: 'Watched',        emoji: '👀', description: '10K total views' },
   total_100k_views:   { label: 'Famous',         emoji: '🎬', description: '100K total views' },
-  total_1m_views:     { label: 'Star',           emoji: '⭐', description: '1M total views' },
-  total_10m_views:    { label: 'Superstar',      emoji: '🌟', description: '10M total views' },
+  total_1m_views:     { label: 'Star',           emoji: '🌠', description: '1M total views' },
+  total_10m_views:    { label: 'Superstar',      emoji: '✨', description: '10M total views' },
   
   // ═══ FOLLOWERS ═══
   first_follower:     { label: 'Social',        emoji: '👥', description: 'Got your first follower' },
   ten_followers:      { label: 'Growing',       emoji: '🌱', description: 'Reached 10 followers' },
-  fifty_followers:    { label: 'Influencer',    emoji: '⭐', description: 'Reached 50 followers' },
-  hundred_followers:  { label: 'Popular',       emoji: '🌟', description: 'Reached 100 followers' },
+  fifty_followers:    { label: 'Connected',     emoji: '🤝', description: 'Reached 50 followers' },
+  hundred_followers:  { label: 'Popular',       emoji: '👋', description: 'Reached 100 followers' },
   five_hundred_followers: { label: 'Rising Star', emoji: '💫', description: 'Reached 500 followers' },
-  thousand_followers: { label: 'Influencer',    emoji: '👑', description: 'Reached 1K followers' },
+  thousand_followers: { label: 'Influencer',    emoji: '🎖️', description: 'Reached 1K followers' },
   
   // ═══ LIKES & ENGAGEMENT ═══
   first_like:         { label: 'Liked',           emoji: '❤️', description: 'Got your first like' },
   fifty_likes:        { label: 'Fan Favourite',    emoji: '💜', description: 'Got 50 likes on your clips' },
-  hundred_likes:      { label: 'Loved',            emoji: '🎉', description: 'Got 100 likes on your clips' },
+  hundred_likes:      { label: 'Loved',            emoji: '💗', description: 'Got 100 likes on your clips' },
   five_hundred_likes: { label: 'Adored',           emoji: '💖', description: 'Got 500 likes on your clips' },
   thousand_likes:     { label: 'Beloved',          emoji: '💕', description: 'Got 1K likes on your clips' },
   
   // ═══ SAVES & BOOKMARKS ═══
   first_save:         { label: 'Saved',            emoji: '🔖', description: 'A clip was saved for later' },
-  fifty_saves:        { label: 'Worth Saving',     emoji: '⭐', description: '50 saves across clips' },
+  fifty_saves:        { label: 'Worth Saving',     emoji: '💾', description: '50 saves across clips' },
   hundred_saves:      { label: 'Must-Save',        emoji: '📌', description: '100 saves across clips' },
   
   // ═══ SHARES & REPOSTS ═══
@@ -85,22 +85,22 @@ export const BADGES: Record<string, { label: string; emoji: string; description:
   
   // Levels
   level_3:            { label: 'Getting Started', emoji: '🎯', description: 'Reached Level 3' },
-  level_5:            { label: 'Rising Star',   emoji: '🌟', description: 'Reached Level 5' },
-  level_10:           { label: 'Legend',        emoji: '👑', description: 'Reached Level 10' },
+  level_5:            { label: 'Leveling Up',   emoji: '🆙', description: 'Reached Level 5' },
+  level_10:           { label: 'Legend',        emoji: '🏅', description: 'Reached Level 10' },
   
   // ═══ FESTIVALS & EVENTS ═══
   multi_festival:     { label: 'Festival Hopper',   emoji: '🎡', description: 'Uploaded from 3+ different festivals' },
   five_festivals:     { label: 'Festival Pro',      emoji: '🎠', description: 'Uploaded from 5+ different festivals' },
-  ten_festivals:      { label: 'Festival Legend',   emoji: '🏆', description: 'Uploaded from 10+ different festivals' },
+  ten_festivals:      { label: 'Festival Legend',   emoji: '🎪', description: 'Uploaded from 10+ different festivals' },
   twenty_festivals:   { label: 'Festival Collector', emoji: '🎟️', description: 'Uploaded from 20+ different festivals' },
-  first_to_festival:  { label: 'First on the Scene', emoji: '🎯', description: 'First to upload from a festival' },
-  weekend_warrior:    { label: 'Weekend Warrior',   emoji: '🎆', description: 'Uploaded from 5 weekend festivals' },
+  first_to_festival:  { label: 'First on the Scene', emoji: '🚩', description: 'First to upload from a festival' },
+  weekend_warrior:    { label: 'Weekend Warrior',   emoji: '🎉', description: 'Uploaded from 5 weekend festivals' },
   full_lineup:        { label: 'Full Lineup',       emoji: '🎶', description: 'Uploaded 10+ artists from one festival' },
   
   // Early Adopters (exclusive, prestigious)
   first_100:          { label: 'Founding 100',    emoji: '💎', description: 'Among the first 100 users' },
-  first_1000:         { label: 'Pioneer',         emoji: '🌟', description: 'Among the first 1,000 users' },
-  first_10000:        { label: 'Early Adopter',   emoji: '🔥', description: 'Among the first 10,000 users' },
+  first_1000:         { label: 'Pioneer',         emoji: '🎖️', description: 'Among the first 1,000 users' },
+  first_10000:        { label: 'Early Adopter',   emoji: '🆕', description: 'Among the first 10,000 users' },
   
   // ═══ TIME-BASED & SPECIAL MOMENTS ═══
   night_owl:          { label: 'Night Owl',        emoji: '🦉', description: 'Uploaded after midnight' },

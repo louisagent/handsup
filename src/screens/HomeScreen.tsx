@@ -128,6 +128,10 @@ export default function HomeScreen({ navigation }: any) {
           setFollowingClips(rawFollowingRef.current.filter((c) => !c.uploader_id || !mutedIds.includes(c.uploader_id)));
         }
       });
+      // Cleanup: pause all videos when screen loses focus
+      return () => {
+        setVisibleClipId(null);
+      };
     }, [])
   );
 
