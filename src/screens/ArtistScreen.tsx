@@ -296,10 +296,19 @@ export default function ArtistScreen({ route, navigation }: any) {
           </Text>
         ) : null}
         <View style={styles.clipStats}>
-          <Text style={styles.clipStat}>▶ {(item.view_count ?? 0).toLocaleString()}</Text>
-          <Text style={styles.clipStat}>⬇ {(item.download_count ?? 0).toLocaleString()}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="play" size={11} color="#8B5CF6" />
+            <Text style={styles.clipStat}>{(item.view_count ?? 0).toLocaleString()}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="arrow-down" size={11} color="#555" />
+            <Text style={styles.clipStat}>{(item.download_count ?? 0).toLocaleString()}</Text>
+          </View>
           {item.duration_seconds != null && (
-            <Text style={styles.clipStat}>⏱ {item.duration_seconds}s</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="time-outline" size={11} color="#555" />
+              <Text style={styles.clipStat}>{item.duration_seconds}s</Text>
+            </View>
           )}
         </View>
       </View>

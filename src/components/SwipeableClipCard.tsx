@@ -195,7 +195,7 @@ export const SwipeableClipCard: React.FC<Props> = ({
           onPress={handleSave}
           activeOpacity={0.85}
         >
-          <Text style={styles.actionIcon}>{isSaved ? '★' : '💾'}</Text>
+          <Ionicons name={isSaved ? 'bookmark' : 'bookmark-outline'} size={22} color="#fff" />
           <Text style={styles.actionLabel}>{isSaved ? 'Saved' : 'Save'}</Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -203,7 +203,7 @@ export const SwipeableClipCard: React.FC<Props> = ({
           onPress={handleShare}
           activeOpacity={0.85}
         >
-          <Text style={styles.actionIcon}>↗</Text>
+          <Ionicons name="share-outline" size={22} color="#fff" />
           <Text style={styles.actionLabel}>Share</Text>
         </TouchableOpacity>
       </View>
@@ -299,7 +299,12 @@ export const SwipeableClipCard: React.FC<Props> = ({
                 {video.description}
               </Text>
             ) : null}
-            {isSaved && <Text style={styles.savedIndicator}>★ Saved</Text>}
+            {isSaved && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
+                <Ionicons name="bookmark" size={12} color="#8B5CF6" />
+                <Text style={styles.savedIndicator}>Saved</Text>
+              </View>
+            )}
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -332,10 +337,6 @@ const styles = StyleSheet.create({
   },
   shareBtn: {
     backgroundColor: '#16A34A', // green
-  },
-  actionIcon: {
-    fontSize: 22,
-    color: '#fff',
   },
   actionLabel: {
     fontSize: 12,

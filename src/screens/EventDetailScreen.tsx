@@ -684,10 +684,19 @@ export default function EventDetailScreen({ route, navigation }: any) {
           <Text style={styles.clipDesc} numberOfLines={2}>{video.description}</Text>
         ) : null}
         <View style={styles.clipStats}>
-          <Text style={styles.clipStat}>▶ {(video.view_count ?? 0).toLocaleString()}</Text>
-          <Text style={styles.clipStat}>⬇ {(video.download_count ?? 0).toLocaleString()}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="play" size={11} color="#8B5CF6" />
+            <Text style={styles.clipStat}>{(video.view_count ?? 0).toLocaleString()}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="arrow-down" size={11} color="#555" />
+            <Text style={styles.clipStat}>{(video.download_count ?? 0).toLocaleString()}</Text>
+          </View>
           {video.duration_seconds != null && (
-            <Text style={styles.clipStat}>⏱ {video.duration_seconds}s</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="time-outline" size={11} color="#555" />
+              <Text style={styles.clipStat}>{video.duration_seconds}s</Text>
+            </View>
           )}
         </View>
       </View>
@@ -865,8 +874,8 @@ export default function EventDetailScreen({ route, navigation }: any) {
                 <Ionicons name="download-outline" size={16} color="#fff" />
                 <Text style={styles.downloadAllBtnText}>
                   {clips.length > DOWNLOAD_ALL_CAP
-                    ? `⬇ Download Top ${DOWNLOAD_ALL_CAP}`
-                    : `⬇ Download All (${clips.length})`}
+                    ? `Download Top ${DOWNLOAD_ALL_CAP}`
+                    : `Download All (${clips.length})`}
                 </Text>
               </TouchableOpacity>
             )}
@@ -916,17 +925,31 @@ export default function EventDetailScreen({ route, navigation }: any) {
             style={[styles.tab, activeTab === 'about' && styles.tabActive]}
             onPress={() => setActiveTab('about')}
           >
-            <Text style={[styles.tabText, activeTab === 'about' && styles.tabTextActive]}>
-              🎪 About
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons
+                name="information-circle-outline"
+                size={16}
+                color={activeTab === 'about' ? '#8B5CF6' : '#666'}
+              />
+              <Text style={[styles.tabText, activeTab === 'about' && styles.tabTextActive]}>
+                About
+              </Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'discussion' && styles.tabActive]}
             onPress={() => setActiveTab('discussion')}
           >
-            <Text style={[styles.tabText, activeTab === 'discussion' && styles.tabTextActive]}>
-              💬 Chat
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons
+                name="chatbubble-outline"
+                size={16}
+                color={activeTab === 'discussion' ? '#8B5CF6' : '#666'}
+              />
+              <Text style={[styles.tabText, activeTab === 'discussion' && styles.tabTextActive]}>
+                Chat
+              </Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.tab, activeTab === 'transport' && styles.tabActive]}
@@ -958,7 +981,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
               </View>
             ) : clips.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>🎪</Text>
+                <Ionicons name="calendar-outline" size={48} color="#333" style={{ marginBottom: 12 }} />
                 <Text style={styles.emptyTitle}>No clips yet</Text>
                 <Text style={styles.emptyBody}>
                   Be the first to upload footage from {event.name}!
@@ -977,7 +1000,10 @@ export default function EventDetailScreen({ route, navigation }: any) {
                   {recentHourCount === 0 ? (
                     <Text style={styles.activityCounterText}>Be the first to upload today</Text>
                   ) : recentHourCount > 10 ? (
-                    <Text style={styles.activityCounterTextHot}>🔥 {recentHourCount} clips uploaded in the last hour</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Ionicons name="flame" size={14} color="#EF4444" />
+                      <Text style={styles.activityCounterTextHot}>{recentHourCount} clips uploaded in the last hour</Text>
+                    </View>
                   ) : (
                     <Text style={styles.activityCounterText}>📤 {recentHourCount} clip{recentHourCount !== 1 ? 's' : ''} uploaded in the last hour</Text>
                   )}
@@ -989,7 +1015,10 @@ export default function EventDetailScreen({ route, navigation }: any) {
                     <>
                       <View style={styles.liveTitleRow}>
                         <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseAnim }] }]} />
-                        <Text style={styles.liveTitle}>🔥 Live right now</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Ionicons name="flame" size={18} color="#EF4444" />
+                          <Text style={styles.liveTitle}>Live right now</Text>
+                        </View>
                         <Text style={styles.liveCount}>{liveClips.length} new</Text>
                       </View>
                       <ScrollView
@@ -1054,7 +1083,10 @@ export default function EventDetailScreen({ route, navigation }: any) {
                 {/* ── Festival Crew ── */}
                 {festivalCrew.length > 0 && (
                   <View style={styles.crewSection}>
-                    <Text style={styles.crewTitle}>🏆 Festival Crew</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Ionicons name="trophy" size={18} color="#8B5CF6" />
+                      <Text style={styles.crewTitle}>Festival Crew</Text>
+                    </View>
                     <Text style={styles.crewSubtitle}>Top contributors to this event</Text>
                     <View style={styles.crewRow}>
                       {festivalCrew.map((member, index) => (

@@ -225,10 +225,10 @@ export default function CreatorStatsScreen() {
   const totalClips     = clips.length;
 
   const statCards: StatCard[] = [
-    { label: 'Total Views',     value: totalViews,     icon: '▶',  color: '#8B5CF6' },
-    { label: 'Total Downloads', value: totalDownloads, icon: '⬇',  color: '#4ade80' },
-    { label: 'Total Likes',     value: totalLikes,     icon: '❤️', color: '#EF4444' },
-    { label: 'Total Clips',     value: totalClips,     icon: '🎥', color: '#facc15' },
+    { label: 'Total Views',     value: totalViews,     icon: 'play',           color: '#8B5CF6' },
+    { label: 'Total Downloads', value: totalDownloads, icon: 'arrow-down',     color: '#4ade80' },
+    { label: 'Total Likes',     value: totalLikes,     icon: 'heart',          color: '#EF4444' },
+    { label: 'Total Clips',     value: totalClips,     icon: 'videocam',       color: '#facc15' },
   ];
 
   // Top clip by downloads (existing logic)
@@ -280,7 +280,7 @@ export default function CreatorStatsScreen() {
         >
           {statCards.map((card) => (
             <View key={card.label} style={styles.overviewCard}>
-              <Text style={styles.overviewIcon}>{card.icon}</Text>
+              <Ionicons name={card.icon as any} size={28} color={card.color} style={{ marginBottom: 8 }} />
               <Text style={[styles.overviewValue, { color: card.color }]}>
                 {card.value.toLocaleString()}
               </Text>
@@ -305,7 +305,10 @@ export default function CreatorStatsScreen() {
       {/* ── Top Performing Clip ── */}
       {topClip ? (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🏆 Top Performing Clip</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <Ionicons name="trophy" size={18} color="#8B5CF6" />
+            <Text style={styles.sectionTitle}>Top Performing Clip</Text>
+          </View>
           <View style={styles.topClipCard}>
             {topClip.thumbnail_url ? (
               <Image source={{ uri: topClip.thumbnail_url }} style={styles.topClipThumb} />
@@ -335,7 +338,10 @@ export default function CreatorStatsScreen() {
 
       {/* ── Top 5 Clips by Views ── */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>🔥 Top Clips by Views</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Ionicons name="trending-up" size={18} color="#8B5CF6" />
+          <Text style={styles.sectionTitle}>Top Clips by Views</Text>
+        </View>
         {top5ByViews.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="videocam-outline" size={36} color="#333" />
@@ -419,8 +425,14 @@ export default function CreatorStatsScreen() {
                 <Text style={styles.perfFestival} numberOfLines={1}>{clip.festival_name}</Text>
               </View>
               <View style={styles.perfStats}>
-                <Text style={styles.perfDownloads}>⬇ {clip.download_count.toLocaleString()}</Text>
-                <Text style={styles.perfViews}>▶ {(clip.view_count ?? 0).toLocaleString()}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="arrow-down" size={11} color="#4ade80" />
+                  <Text style={styles.perfDownloads}>{clip.download_count.toLocaleString()}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="play" size={11} color="#8B5CF6" />
+                  <Text style={styles.perfViews}>{(clip.view_count ?? 0).toLocaleString()}</Text>
+                </View>
               </View>
             </View>
           ))

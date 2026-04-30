@@ -496,7 +496,10 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.pillRowWrapper}>{renderFeedPills()}</View>
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>🔥 Trending this week</Text>
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="trending-up" size={18} color="#8B5CF6" />
+                <Text style={styles.sectionTitle}>Trending this week</Text>
+              </View>
             </View>
             <ScrollView
               horizontal
@@ -804,7 +807,10 @@ export default function HomeScreen({ navigation }: any) {
         {/* Upcoming Festivals */}
         {upcomingEvents.length > 0 && (
           <View style={styles.upcomingSection}>
-            <Text style={styles.upcomingTitle}>📅 Upcoming Festivals</Text>
+            <View style={styles.upcomingTitleRow}>
+              <Ionicons name="calendar-outline" size={18} color="#8B5CF6" />
+              <Text style={styles.upcomingTitle}>Upcoming Festivals</Text>
+            </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.upcomingScroll}>
               {upcomingEvents.map((event) => {
                 const daysUntil = Math.ceil((new Date(event.start_date).getTime() - Date.now()) / 86400000);
@@ -901,7 +907,7 @@ export default function HomeScreen({ navigation }: any) {
                     {featuredFestival.clips.map((clip, idx) => renderClipCard(clip, 'featured-', idx, visibleClipId === clip.id))}
                   </View>
                 ) : (
-                  <Text style={styles.emptyText}>0 clips. You're early. Set the tone 🔥</Text>
+                  <Text style={styles.emptyText}>0 clips. You're early. Set the tone</Text>
                 )
               ) : (
                 <>
@@ -1006,6 +1012,11 @@ const styles = StyleSheet.create({
   pillTextActive: { color: '#fff' },
   section: { marginTop: 24 },
   sectionHeader: { paddingHorizontal: 20, marginBottom: 14 },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
@@ -1388,9 +1399,16 @@ const styles = StyleSheet.create({
 
   // Upcoming Festivals
   upcomingSection: { marginBottom: 24 },
+  upcomingTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
   upcomingTitle: {
     fontSize: 16, fontWeight: '800', color: '#fff',
-    paddingHorizontal: 16, marginBottom: 12, letterSpacing: -0.3,
+    letterSpacing: -0.3,
   },
   upcomingScroll: { paddingHorizontal: 16, gap: 10 },
   upcomingCard: {

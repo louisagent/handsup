@@ -119,7 +119,7 @@ function ClipCard({
         )}
         {isPinned && (
           <View style={clipStyles.pinnedBadge}>
-            <Text style={clipStyles.pinnedBadgeText}>📌</Text>
+            <Ionicons name="pin" size={10} color="#fff" />
           </View>
         )}
       </View>
@@ -347,9 +347,9 @@ export default function ProfileScreen({ navigation }: any) {
   const handleLongPressClip = (clip: Clip) => {
     const isPinned = pinnedClipIds.includes(clip.id);
     const canPin = pinnedClipIds.length < 3;
-    let pinLabel = '📌 Pin to profile';
-    if (isPinned) pinLabel = '📌 Unpin from profile';
-    else if (!canPin) pinLabel = '📌 Max 3 pins';
+    let pinLabel = 'Pin to profile';
+    if (isPinned) pinLabel = 'Unpin from profile';
+    else if (!canPin) pinLabel = 'Max 3 pins';
     const options = [pinLabel, '🗑 Delete clip', 'Cancel'];
 
     const runAction = async (idx: number) => {
@@ -599,7 +599,7 @@ export default function ProfileScreen({ navigation }: any) {
       ) : (
         <View style={styles.badgesSection}>
           <Text style={styles.badgesTitle}>0 BADGES</Text>
-          <Text style={styles.badgesEmpty}>Earn your first badge by uploading a clip 🎬</Text>
+          <Text style={styles.badgesEmpty}>Earn your first badge by uploading a clip</Text>
         </View>
       )}
 

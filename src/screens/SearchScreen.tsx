@@ -602,7 +602,10 @@ export default function SearchScreen({ navigation, route }: any) {
             onPress={() => navigation.navigate('Events')}
             activeOpacity={0.85}
           >
-            <Text style={styles.eventsBtnText}>🎪 Events</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="calendar-outline" size={14} color="#8B5CF6" />
+              <Text style={styles.eventsBtnText}>Events</Text>
+            </View>
           </TouchableOpacity>
         </View>
         <View style={styles.searchInputWrapper}>
@@ -636,7 +639,11 @@ export default function SearchScreen({ navigation, route }: any) {
                   activeOpacity={0.8}
                 >
                   <Text style={styles.autocompleteIcon}>
-                    {item.type === 'artist' ? '🎤' : '🎪'}
+                    <Ionicons
+                      name={item.type === 'artist' ? 'mic-outline' : 'calendar-outline'}
+                      size={16}
+                      color="#8B5CF6"
+                    />
                   </Text>
                   <Text style={styles.autocompleteText}>{item.text}</Text>
                 </TouchableOpacity>
@@ -648,7 +655,10 @@ export default function SearchScreen({ navigation, route }: any) {
         {/* Suggested chips — shown when focused and not yet typing */}
         {isFocused && query.length === 0 && (
           <View style={styles.suggestedRow}>
-            <Text style={styles.suggestedLabel}>🔥 Trending:</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="trending-up" size={14} color="#8B5CF6" />
+              <Text style={styles.suggestedLabel}>Trending:</Text>
+            </View>
             {['Laneway', 'Fred Again', 'Boiler Room', 'Melbourne'].map((chip) => (
               <TouchableOpacity
                 key={chip}
@@ -809,7 +819,10 @@ export default function SearchScreen({ navigation, route }: any) {
                     )}
                     <View style={festivalStyles.info}>
                       <Text style={festivalStyles.name}>{item.name}</Text>
-                      <Text style={festivalStyles.location}>📍 {item.city}, {item.country}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="location" size={12} color="#666" />
+                        <Text style={festivalStyles.location}>{item.city}, {item.country}</Text>
+                      </View>
                     </View>
                     <View style={festivalStyles.clips}>
                       <Text style={festivalStyles.clipsCount}>{item.clip_count}</Text>

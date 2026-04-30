@@ -74,7 +74,11 @@ function PodiumPillar({ entry, rank }: { entry: UserLeaderboardEntry | null; ran
     <View style={[styles.pillarWrapper, rank === 1 && styles.pillarWrapperFirst]}>
       {/* Avatar + rank badge */}
       <View style={{ alignItems: 'center', marginBottom: 6 }}>
-        {rank === 1 && <Text style={styles.crownEmoji}>👑</Text>}
+        {rank === 1 && (
+          <View style={styles.crownBadge}>
+            <Ionicons name="trophy" size={16} color="#F59E0B" />
+          </View>
+        )}
         {entry.avatar_url ? (
           <View style={[
             styles.avatar,
@@ -238,7 +242,10 @@ export default function LeaderboardScreen() {
           <Text style={styles.headerTitle}>
             {selectedEvent ? `${selectedEvent} Leaderboard` : 'Leaderboard'}
           </Text>
-          <Text style={styles.headerSub}>🏆 Top clips right now</Text>
+          <View style={styles.headerSubRow}>
+            <Ionicons name="trophy-outline" size={14} color="#666" />
+            <Text style={styles.headerSub}>Top clips right now</Text>
+          </View>
         </View>
 
         {/* User rank sticky bar / unranked state */}
@@ -319,7 +326,7 @@ export default function LeaderboardScreen() {
           </View>
         ) : users.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🎪</Text>
+            <Ionicons name="videocam-outline" size={48} color="#333" style={{ marginBottom: 12 }} />
             <Text style={styles.emptyTitle}>No clips yet.</Text>
             <Text style={styles.emptySubtitle}>
               Be the first to set the bar. 🏆
@@ -354,7 +361,9 @@ export default function LeaderboardScreen() {
 
         {/* CTA */}
         <View style={styles.ctaCard}>
-          <Text style={styles.ctaEmoji}>🙌</Text>
+          <View style={styles.ctaIconWrapper}>
+            <Ionicons name="arrow-up-outline" size={28} color="#8B5CF6" />
+          </View>
           <Text style={styles.ctaTitle}>Make your mark</Text>
           <Text style={styles.ctaBody}>
             Every download counts. Upload more clips to climb the board.
@@ -365,15 +374,15 @@ export default function LeaderboardScreen() {
         <View style={styles.explainer}>
           <Text style={styles.explainerTitle}>How to rank</Text>
           <View style={styles.explainerRow}>
-            <Text style={styles.explainerEmoji}>⬇️</Text>
+            <Ionicons name="download-outline" size={18} color="#8B5CF6" />
             <Text style={styles.explainerText}>Downloads are the primary ranking signal</Text>
           </View>
           <View style={styles.explainerRow}>
-            <Text style={styles.explainerEmoji}>▶️</Text>
+            <Ionicons name="play-outline" size={18} color="#8B5CF6" />
             <Text style={styles.explainerText}>Views show how far your clip reaches</Text>
           </View>
           <View style={styles.explainerRow}>
-            <Text style={styles.explainerEmoji}>💬</Text>
+            <Ionicons name="chatbubble-outline" size={18} color="#8B5CF6" />
             <Text style={styles.explainerText}>Comments boost your clip in Trending</Text>
           </View>
         </View>
@@ -583,9 +592,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     borderColor: '#2a2a2a',
   },
-  crownEmoji: {
-    fontSize: 18,
-    marginBottom: 2,
+  crownBadge: {
+    marginBottom: 4,
+  },
+  headerSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
   },
   pillarArtist: {
     color: '#fff',
@@ -754,9 +768,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#8B5CF622',
   },
-  ctaEmoji: {
-    fontSize: 40,
-    marginBottom: 12,
+  ctaIconWrapper: {
+    marginBottom: 8,
   },
   ctaTitle: {
     color: '#fff',
@@ -796,11 +809,7 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 10,
   },
-  explainerEmoji: {
-    fontSize: 16,
-    width: 24,
-    textAlign: 'center',
-  },
+
   explainerText: {
     color: '#666',
     fontSize: 13,
