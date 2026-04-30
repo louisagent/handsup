@@ -1,98 +1,58 @@
 // ============================================================
-// Handsup — Location Utility
-// Thin layer on top of expo-location + AsyncStorage.
-// Uses { lat, lng } shape (distinct from the services/location
-// module which uses { latitude, longitude }).
+// Location normalization utilities
 // ============================================================
 
-import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-export const COORDS_KEY = 'handsup_user_coords';
-
-export interface Coords {
-  lat: number;
-  lng: number;
-}
-
-// ── Permission ─────────────────────────────────────────────
-
 /**
- * Request foreground location permission.
- * Returns true if granted.
+ * Normalize a location string to a canonical format.
+ * Handles cases like:
+ * - "Indio California" → "Indio, California"
+ * - "Indio  California  " → "Indio, California"
+ * - "indio california" → "Indio, California"
+ * - "Indio, CA" → "Indio, CA" (preserves existing comma format)
  */
-export async function requestLocationPermission(): Promise<boolean> {
-  const { status } = await Location.requestForegroundPermissionsAsync();
-  return status === 'granted';
-}
-
-// ── Get current coords ─────────────────────────────────────
-
-/**
- * Request permission, get the current GPS position, store it,
- * and return { lat, lng }. Returns null on any failure.
- */
-export async function getCurrentCoords(): Promise<Coords | null> {
-  try {
-    const granted = await requestLocationPermission();
-    if (!granted) return null;
-    const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    const coords: Coords = {
-      lat: pos.coords.latitude,
-      lng: pos.coords.longitude,
-    };
-    await storeCoords(coords);
-    return coords;
-  } catch {
-    return null;
+export function normalizeLocation(location: string): string {
+  if (!location) return '';
+  
+  // Trim whitespace
+  let normalized = location.trim();
+  
+  // Replace multiple spaces with single space
+  normalized = normalized.replace(/\s+/g, ' ');
+  
+  // If there's no comma but there are two words, add a comma
+  // This handles "Indio California" → "Indio, California"
+  if (!normalized.includes(',')) {
+    const parts = normalized.split(' ');
+    if (parts.length === 2) {
+      normalized = `${parts[0]}, ${parts[1]}`;
+    }
   }
+  
+  // Capitalize first letter of each word for consistency
+  normalized = normalized
+    .split(/([,\s]+)/)
+    .map((part) => {
+      if (part.match(/^[,\s]+$/)) return part; // preserve separators
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    })
+    .join('');
+  
+  return normalized;
 }
 
-// ── AsyncStorage helpers ───────────────────────────────────
-
 /**
- * Persist coords to AsyncStorage.
+ * Deduplicate and normalize an array of location strings.
+ * Returns a sorted array of unique, normalized locations.
  */
-export async function storeCoords(coords: Coords): Promise<void> {
-  try {
-    await AsyncStorage.setItem(COORDS_KEY, JSON.stringify(coords));
-  } catch {
-    // swallow — non-critical
+export function deduplicateLocations(locations: string[]): string[] {
+  const normalized = new Map<string, string>();
+  
+  for (const loc of locations) {
+    const norm = normalizeLocation(loc);
+    if (norm && !normalized.has(norm)) {
+      normalized.set(norm, norm);
+    }
   }
-}
-
-/**
- * Read previously stored coords. Returns null if not set.
- */
-export async function getStoredCoords(): Promise<Coords | null> {
-  try {
-    const raw = await AsyncStorage.getItem(COORDS_KEY);
-    return raw ? (JSON.parse(raw) as Coords) : null;
-  } catch {
-    return null;
-  }
-}
-
-// ── Haversine distance ─────────────────────────────────────
-
-/**
- * Returns the great-circle distance between two lat/lng points in km.
- */
-export function haversineDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6371; // Earth radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  
+  return Array.from(normalized.values()).sort();
 }

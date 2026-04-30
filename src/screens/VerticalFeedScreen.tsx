@@ -384,13 +384,6 @@ function FeedItem({ item, isVisible, isMuted, onToggleMute, navigation }: FeedIt
       {/* Overlay — fades in/out on single tap */}
       <Animated.View style={[styles.overlayWrapper, { opacity: overlayOpacity }]} pointerEvents={overlayVisible ? 'box-none' : 'none'}>
 
-      {/* Artist avatar — top right */}
-      <View style={styles.avatarTopRight}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>{artistInitials}</Text>
-        </View>
-      </View>
-
       {/* Bottom overlay — tappable top half → VideoDetail, bottom row has action buttons */}
       <View style={styles.bottomOverlay}>
         {/* Tappable info area */}
@@ -771,28 +764,6 @@ const styles = StyleSheet.create({
   overlayWrapper: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10,
-  },
-
-  // Avatar top-right
-  avatarTopRight: {
-    position: 'absolute',
-    top: 60,
-    right: 16,
-  },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#8B5CF6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  avatarText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 14,
   },
 
   // Bottom overlay

@@ -612,7 +612,7 @@ export default function HomeScreen({ navigation }: any) {
             <Image source={require('../../assets/logo-full.jpeg')} style={styles.logoImage} resizeMode="contain" />
             
           </View>
-          <Text style={styles.tagline}>feel it now. find it later.</Text>
+          <Text style={styles.tagline}>Find the best clips from the set</Text>
         </View>
 
         {/* Feed toggle pills */}
@@ -682,7 +682,7 @@ export default function HomeScreen({ navigation }: any) {
           >
             <View style={styles.watchFeedLeftBorder} />
             <Ionicons name="radio-outline" size={14} color="#8B5CF6" />
-            <Text style={styles.watchFeedText}>Watch what's happening now</Text>
+            <Text style={styles.watchFeedText}>Best clips from recent sets</Text>
             <Text style={styles.watchFeedArrow}>›</Text>
           </LinearGradient>
         </TouchableOpacity>

@@ -38,11 +38,32 @@ const PODIUM_HEIGHTS: Record<number, number> = { 1: 80, 2: 60, 3: 48 };
 // Avatar sizes for each rank position
 const AVATAR_SIZES: Record<number, number> = { 1: 64, 2: 52, 3: 52 };
 
-function PodiumPillar({ entry, rank }: { entry: UserLeaderboardEntry; rank: 1 | 2 | 3 }) {
-  const views = entry.total_views;
-  const username = entry.username ?? '—';
+function PodiumPillar({ entry, rank }: { entry: UserLeaderboardEntry | null; rank: 1 | 2 | 3 }) {
   const avatarSize = AVATAR_SIZES[rank];
   const colHeight = PODIUM_HEIGHTS[rank];
+
+  // Blank space if no user at this position
+  if (!entry) {
+    return (
+      <View style={[styles.pillarWrapper, rank === 1 && styles.pillarWrapperFirst]}>
+        <View style={{ alignItems: 'center', marginBottom: 6 }}>
+          <View style={[
+            styles.avatar,
+            styles.avatarBlank,
+            { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
+          ]} />
+          <View style={[styles.rankBadge, styles.rankBadgeBlank]}>
+            <Text style={styles.rankBadgeText}>{rank}</Text>
+          </View>
+        </View>
+        <Text style={styles.pillarArtist}>—</Text>
+        <View style={[styles.podiumCol, { height: colHeight }]} />
+      </View>
+    );
+  }
+
+  const views = entry.total_views;
+  const username = entry.username ?? '—';
   const initials = username
     .split('')
     .slice(0, 2)
@@ -184,6 +205,13 @@ export default function LeaderboardScreen() {
   const top3 = users.slice(0, 3);
   const rest = users.slice(3);
 
+  // Prepare podium entries with null for missing positions
+  const podiumEntries: (UserLeaderboardEntry | null)[] = [
+    top3[1] ?? null, // 2nd place
+    top3[0] ?? null, // 1st place
+    top3[2] ?? null, // 3rd place
+  ];
+
   // Find current user's rank in the list
   const userRank = currentUsername
     ? users.findIndex((u) => u.username === currentUsername) + 1
@@ -299,26 +327,24 @@ export default function LeaderboardScreen() {
           </View>
         ) : (
           <>
-            {/* Podium — top 3 */}
-            {top3.length >= 3 && (
-              <View style={styles.podium}>
-                <View style={styles.podiumRow}>
-                  <PodiumPillar entry={top3[1]} rank={2} />
-                  <PodiumPillar entry={top3[0]} rank={1} />
-                  <PodiumPillar entry={top3[2]} rank={3} />
-                </View>
+            {/* Podium — always show, with blanks for missing positions */}
+            <View style={styles.podium}>
+              <View style={styles.podiumRow}>
+                <PodiumPillar entry={podiumEntries[0]} rank={2} />
+                <PodiumPillar entry={podiumEntries[1]} rank={1} />
+                <PodiumPillar entry={podiumEntries[2]} rank={3} />
               </View>
-            )}
+            </View>
 
             {/* Rest of leaderboard */}
-            {(top3.length < 3 ? users : rest).length > 0 && (
+            {rest.length > 0 && (
               <View style={styles.listSection}>
                 <Text style={styles.listTitle}>Full Rankings</Text>
-                {(top3.length < 3 ? users : rest).map((entry, i) => (
+                {rest.map((entry, i) => (
                   <LeaderRow
                     key={entry.user_id}
                     entry={entry}
-                    rank={top3.length < 3 ? i + 1 : i + 4}
+                    rank={i + 4}
                   />
                 ))}
               </View>
@@ -370,9 +396,9 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    paddingTop: 60,
+    paddingTop: 70,
     paddingHorizontal: 24,
-    paddingBottom: 20,
+    paddingBottom: 28,
   },
   headerTitle: {
     fontSize: 34,
@@ -476,7 +502,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginHorizontal: 24,
     gap: 8,
-    marginBottom: 28,
+    marginBottom: 32,
   },
   pill: {
     flex: 1,
@@ -500,7 +526,8 @@ const styles = StyleSheet.create({
   // Podium
   podium: {
     paddingHorizontal: 16,
-    marginBottom: 8,
+    marginBottom: 24,
+    marginTop: 12,
   },
   podiumRow: {
     flexDirection: 'row',
@@ -548,6 +575,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '900',
     fontSize: 10,
+  },
+  rankBadgeBlank: {
+    backgroundColor: '#2a2a2a',
+  },
+  avatarBlank: {
+    backgroundColor: '#1a1a1a',
+    borderColor: '#2a2a2a',
   },
   crownEmoji: {
     fontSize: 18,

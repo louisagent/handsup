@@ -582,29 +582,15 @@ export default function ProfileScreen({ navigation }: any) {
       {badges.length > 0 ? (
         <View style={styles.badgesSection}>
           <Text style={styles.badgesTitle}>{badges.length} BADGE{badges.length !== 1 ? 'S' : ''}</Text>
-          {/* Top 5 most recent badges (non-scrollable) */}
-          {badges.length > 0 && (
-            <View style={styles.badgesTopRow}>
-              {badges.slice(0, 5).map((key) => {
-                const badge = BADGES[key];
-                if (!badge) return null;
-                return (
-                  <View key={key} style={styles.badgeCompact}>
-                    <Text style={styles.badgeEmojiCompact}>{badge.emoji}</Text>
-                  </View>
-                );
-              })}
-            </View>
-          )}
-          {/* All badges (horizontally scrollable) */}
+          {/* All badges (horizontally scrollable, same size) */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesRow}>
             {badges.map((key) => {
               const badge = BADGES[key];
               if (!badge) return null;
               return (
-                <View key={key} style={styles.badge}>
-                  <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
-                  <Text style={styles.badgeLabel} numberOfLines={2}>{badge.label}</Text>
+                <View key={key} style={styles.badgeUniform}>
+                  <Text style={styles.badgeEmojiUniform}>{badge.emoji}</Text>
+                  <Text style={styles.badgeLabelUniform} numberOfLines={2}>{badge.label}</Text>
                 </View>
               );
             })}
@@ -617,28 +603,10 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* ── 📌 Pinned Section ── */}
-      {pinnedClips.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.pinnedSectionHeader}>
-            <Text style={styles.pinnedSectionTitle}>📌 Pinned</Text>
-          </View>
-          {pinnedClips.map((clip) => (
-            <ClipCard
-              key={clip.id}
-              clip={clip}
-              isPinned
-              onPress={() => navigation.navigate('VideoDetail', { video: clip })}
-              onLongPress={() => handleLongPressClip(clip)}
-            />
-          ))}
-        </View>
-      )}
-
-      {/* ── YOUR BEST CLIP ── */}
+      {/* ── Best Clip ── */}
       {bestClip && bestClip.download_count > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>YOUR BEST CLIP</Text>
+          <Text style={styles.sectionTitle}>Best Clip</Text>
           <TouchableOpacity
             style={styles.bestClipCard}
             onPress={() => navigation.navigate('VideoDetail', { video: bestClip })}
@@ -663,12 +631,30 @@ export default function ProfileScreen({ navigation }: any) {
         </View>
       )}
 
-      {/* ── My Clips ── */}
+      {/* ── 📌 Pinned Section ── */}
+      {pinnedClips.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.pinnedSectionHeader}>
+            <Text style={styles.pinnedSectionTitle}>Pinned</Text>
+          </View>
+          {pinnedClips.map((clip) => (
+            <ClipCard
+              key={clip.id}
+              clip={clip}
+              isPinned
+              onPress={() => navigation.navigate('VideoDetail', { video: clip })}
+              onLongPress={() => handleLongPressClip(clip)}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* ── All Clips ── */}
       <View
         style={styles.section}
         onLayout={(e) => { clipsYOffset.current = e.nativeEvent.layout.y; }}
       >
-        <Text style={styles.sectionTitle}>My Clips</Text>
+        <Text style={styles.sectionTitle}>All Clips</Text>
         {clips.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="videocam-outline" size={36} color="#333" />
@@ -1039,33 +1025,14 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginBottom: 12,
   },
-  badgesTopRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-    justifyContent: 'flex-start',
-  },
-  badgeCompact: {
-    backgroundColor: '#111',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#2a1650',
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeEmojiCompact: {
-    fontSize: 24,
-  },
   badgesEmpty: {
     fontSize: 13,
     color: '#666',
     textAlign: 'center',
     paddingVertical: 12,
   },
-  badgesRow: { gap: 10 },
-  badge: {
+  badgesRow: { gap: 10, paddingBottom: 4 },
+  badgeUniform: {
     backgroundColor: '#111',
     borderRadius: 12,
     borderWidth: 1,
@@ -1073,24 +1040,16 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: 'center',
     width: 80,
+    height: 100,
+    justifyContent: 'center',
     gap: 6,
   },
-  badgeLocked: {
-    backgroundColor: '#0a0a0a',
-    borderColor: '#1a1a1a',
-    opacity: 0.5,
-  },
-  badgeEmoji: { fontSize: 26 },
-  badgeEmojiLocked: { opacity: 0.4 },
-  badgeLabel: {
+  badgeEmojiUniform: { fontSize: 26 },
+  badgeLabelUniform: {
     color: '#aaa',
     fontSize: 10,
     fontWeight: '600',
     textAlign: 'center',
-  },
-  badgeLabelLocked: {
-    color: '#444',
-    lineHeight: 13,
   },
 
   // Sign out

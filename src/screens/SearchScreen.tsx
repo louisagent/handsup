@@ -23,6 +23,7 @@ import { SkeletonSearchRow } from '../components/SkeletonCard';
 import { trackEvent } from '../services/analytics';
 import { getEvents } from '../services/events';
 import { getCachedLocation, haversineDistance } from '../services/location';
+import { deduplicateLocations } from '../utils/location';
 import { supabase } from '../services/supabase';
 
 const RECENT_SEARCHES_KEY = 'handsup_recent_searches';
@@ -343,10 +344,11 @@ export default function SearchScreen({ navigation, route }: any) {
     // Load all artists
     setAllArtistsLoading(true);
     getAllArtists().then(setAllArtists).catch(() => {}).finally(() => setAllArtistsLoading(false));
-    // Load distinct locations from clips
+    // Load distinct locations from clips with deduplication
     supabase.from('clips').select('location').not('location', 'is', null).then(({ data }) => {
       if (data) {
-        const locs: string[] = [...new Set((data as any[]).map((r) => r.location as string).filter(Boolean))].sort();
+        const rawLocs = (data as any[]).map((r) => r.location as string).filter(Boolean);
+        const locs = deduplicateLocations(rawLocs);
         setAllLocations(locs);
       }
     });

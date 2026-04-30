@@ -119,12 +119,12 @@ const uploadStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -18,
-    // Purple glow
+    // Purple glow (reduced intensity)
     shadowColor: '#8B5CF6',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   circle: {
     width: 56,

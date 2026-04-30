@@ -165,9 +165,17 @@ export async function uploadClip(clip: {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
+  // Normalize location to avoid duplicates like "Indio California" and "Indio, California"
+  const { normalizeLocation } = await import('../utils/location');
+  const normalizedClip = {
+    ...clip,
+    location: normalizeLocation(clip.location),
+    uploader_id: user.id,
+  };
+
   const { data, error } = await supabase
     .from('clips')
-    .insert({ ...clip, uploader_id: user.id })
+    .insert(normalizedClip)
     .select()
     .single();
 
