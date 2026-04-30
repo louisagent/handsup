@@ -634,8 +634,8 @@ export default function ArtistScreen({ route, navigation }: any) {
               <ActivityIndicator color="#8B5CF6" style={{ marginTop: 24 }} />
             ) : discussions.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>💬</Text>
-                <Text style={styles.emptyText}>No discussions yet. Start the conversation! 💬</Text>
+                <Ionicons name="chatbubble-outline" size={48} color="#333" style={{ marginBottom: 12 }} />
+                <Text style={styles.emptyText}>No discussions yet. Start the conversation!</Text>
               </View>
             ) : (
               discussions.map((post) => (

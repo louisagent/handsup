@@ -372,7 +372,10 @@ export default function EditProfileScreen({ navigation }: any) {
             autoCapitalize="words"
             returnKeyType="done"
           />
-          <Text style={styles.fieldHint}>📍 Used as fallback when GPS location isn't available</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
+            <Ionicons name="location" size={12} color="#666" />
+            <Text style={styles.fieldHint}>Used as fallback when GPS location isn't available</Text>
+          </View>
         </View>
 
         <View style={styles.fieldGroup}>

@@ -738,7 +738,17 @@ export default function EventDetailScreen({ route, navigation }: any) {
           )}
           <View style={styles.heroContent}>
             <Text style={styles.heroName}>{event.name}</Text>
-            <Text style={styles.heroMeta}>📍 {event.location ?? ''}{event.country ? `, ${event.country}` : ''}  ·  📅 {event.dates ?? ''}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="location" size={13} color="#8B5CF6" />
+                <Text style={styles.heroMeta}>{event.location ?? ''}{event.country ? `, ${event.country}` : ''}</Text>
+              </View>
+              <Text style={styles.heroMeta}>·</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="calendar-outline" size={13} color="#8B5CF6" />
+                <Text style={styles.heroMeta}>{event.dates ?? ''}</Text>
+              </View>
+            </View>
             <TouchableOpacity
               style={[styles.attendBtn, attended && styles.attendBtnActive]}
               onPress={handleAttendanceToggle}
@@ -1196,7 +1206,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
               <ActivityIndicator color="#8B5CF6" style={{ marginTop: 40 }} />
             ) : !event.lineup || event.lineup.length === 0 ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>🎵</Text>
+                <Ionicons name="musical-notes-outline" size={48} color="#333" style={{ marginBottom: 12 }} />
                 <Text style={styles.emptyTitle}>Lineup coming soon</Text>
                 <Text style={styles.emptyBody}>
                   Set times will be published closer to the event.
@@ -1330,7 +1340,10 @@ export default function EventDetailScreen({ route, navigation }: any) {
           <View style={styles.infoSection}>
 
             {/* Lineup */}
-            <Text style={styles.infoLabel}>🎵 Lineup</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="musical-notes-outline" size={16} color="#8B5CF6" />
+              <Text style={styles.infoLabel}>Lineup</Text>
+            </View>
             {event.genre && event.genre.length > 0 ? (
               <View style={styles.lineupPlaceholder}>
                 <Ionicons name="people-outline" size={20} color="#8B5CF6" style={{ marginBottom: 6 }} />
@@ -1371,7 +1384,10 @@ export default function EventDetailScreen({ route, navigation }: any) {
                   />
                 </MapView>
                 <View style={styles.mapLabel}>
-                  <Text style={styles.mapLabelText}>📍 {event.location}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name="location" size={12} color="#fff" />
+                    <Text style={styles.mapLabelText}>{event.location}</Text>
+                  </View>
                 </View>
               </View>
             ) : (
@@ -1397,7 +1413,10 @@ export default function EventDetailScreen({ route, navigation }: any) {
             {/* Getting there */}
             <Text style={styles.infoLabel}>🚌 Getting there</Text>
             <View style={styles.transportCard}>
-              <Text style={styles.transportAddress}>📍 {event.location}, {event.country}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="location" size={14} color="#666" />
+                <Text style={styles.transportAddress}>{event.location}, {event.country}</Text>
+              </View>
               <TouchableOpacity
                 style={styles.directionsBtn}
                 onPress={handleGetDirections}
@@ -1471,10 +1490,16 @@ export default function EventDetailScreen({ route, navigation }: any) {
             <Text style={styles.infoBody}>{event.description}</Text>
 
             <Text style={styles.infoLabel}>Location</Text>
-            <Text style={styles.infoBody}>📍 {event.location}, {event.country}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="location" size={14} color="#8B5CF6" />
+              <Text style={styles.infoBody}>{event.location}, {event.country}</Text>
+            </View>
 
             <Text style={styles.infoLabel}>Dates</Text>
-            <Text style={styles.infoBody}>📅 {event.dates ?? ''}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="calendar-outline" size={14} color="#8B5CF6" />
+              <Text style={styles.infoBody}>{event.dates ?? ''}</Text>
+            </View>
 
             <Text style={styles.infoLabel}>Expected Attendance</Text>
             <Text style={styles.infoBody}>👥 {event.attendees}</Text>
@@ -1512,8 +1537,8 @@ export default function EventDetailScreen({ route, navigation }: any) {
               <ActivityIndicator color="#8B5CF6" style={{ marginTop: 24 }} />
             ) : eventDiscussions.length === 0 ? (
               <View style={styles.discEmpty}>
-                <Text style={styles.discEmptyEmoji}>💬</Text>
-                <Text style={styles.discEmptyText}>No discussions yet. Start the conversation! 💬</Text>
+                <Ionicons name="chatbubble-outline" size={48} color="#333" style={{ marginBottom: 12 }} />
+                <Text style={styles.discEmptyText}>No discussions yet. Start the conversation!</Text>
               </View>
             ) : (
               eventDiscussions.map((post) => (
@@ -1700,7 +1725,10 @@ export default function EventDetailScreen({ route, navigation }: any) {
                     </View>
                     <Text style={styles.rideCardUsername}>@{offer.user?.username ?? 'user'}</Text>
                   </View>
-                  <Text style={styles.rideCardLocation}>📍 From: {offer.from_location}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons name="location" size={12} color="#666" />
+                    <Text style={styles.rideCardLocation}>From: {offer.from_location}</Text>
+                  </View>
                   {offer.seats_available != null && (
                     <Text style={styles.rideCardSeats}>🪑 {offer.seats_available} seat{offer.seats_available !== 1 ? 's' : ''}</Text>
                   )}

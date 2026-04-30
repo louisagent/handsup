@@ -638,7 +638,7 @@ export default function UploadScreen({ route }: any) {
     const handleShare = async () => {
       try {
         await Share.share({
-          message: `Check out this ${submittedArtist} clip from ${submittedFestival} on Handsup! 🙌\n${deepLink}`,
+          message: `Check out this ${submittedArtist} clip from ${submittedFestival} on Handsup!\n${deepLink}`,
           url: deepLink,
           title: `${submittedArtist} @ ${submittedFestival}`,
         });
@@ -1217,7 +1217,7 @@ export default function UploadScreen({ route }: any) {
           <View style={styles.quickModeAutoNote}>
             <Text style={styles.quickModeAutoNoteText}>
               📅 Date: {date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
-              {location ? `  ·  📍 ${location}` : ''}
+              {location ? `  ·  ${location}` : ''}
             </Text>
           </View>
         )}
@@ -1398,7 +1398,7 @@ export default function UploadScreen({ route }: any) {
             </View>
           ) : (
             <Text style={styles.submitText}>
-              {atEventLimit ? '🚫  Event limit reached' : videoTooLong ? '⚠️  Clip too long' : '🙌  Upload & share'}
+              {atEventLimit ? 'Event limit reached' : videoTooLong ? 'Clip too long' : 'Upload & share'}
             </Text>
           )}
         </TouchableOpacity>

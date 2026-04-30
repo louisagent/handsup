@@ -64,7 +64,14 @@ function FeaturedCard({ item, onPress }: { item: FestivalEvent; onPress: () => v
       </View>
       <View style={styles.featuredContent}>
         <Text style={styles.featuredName}>{item.name}</Text>
-        <Text style={styles.featuredMeta}>📍 {item.location} · {item.dates}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="location" size={12} color="#8B5CF6" />
+            <Text style={styles.featuredMeta}>{item.location}</Text>
+          </View>
+          <Text style={styles.featuredMeta}>·</Text>
+          <Text style={styles.featuredMeta}>{item.dates}</Text>
+        </View>
         <View style={styles.featuredClipsBadge}>
           <Text style={styles.featuredClipsCount}>{item.clipCount.toLocaleString()}</Text>
           <Text style={styles.featuredClipsLabel}> clips</Text>
@@ -246,7 +253,10 @@ export default function EventsScreen({ navigation }: any) {
                 <Text style={styles.name}>{item.name}</Text>
               </View>
               <Text style={styles.location}>
-                📍 {item.location}, {item.country}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="location" size={11} color="#666" />
+                  <Text style={{ color: '#666', fontSize: 11 }}>{item.location}, {item.country}</Text>
+                </View>
               </Text>
               {showDist && (
                 <View style={styles.distanceBadge}>
@@ -361,7 +371,10 @@ export default function EventsScreen({ navigation }: any) {
                       onPress={() => setNearMeActive(!nearMeActive)}
                     >
                       <Text style={[styles.filterText, nearMeActive && styles.filterTextActive]}>
-                        📍 Near me
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="location" size={12} color="#8B5CF6" />
+                          <Text>Near me</Text>
+                        </View>
                       </Text>
                     </TouchableOpacity>
                   </>
