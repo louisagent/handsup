@@ -19,7 +19,13 @@ import {
   FlatList,
   Image,
   Modal,
+  Dimensions,
 } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const GRID_COLUMNS = 3;
+const GRID_SPACING = 2;
+const GRID_TILE_SIZE = (SCREEN_WIDTH - (GRID_SPACING * (GRID_COLUMNS + 1))) / GRID_COLUMNS;
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCurrentProfile, getMyUploads } from '../services/auth';
@@ -145,6 +151,126 @@ function ClipCard({
     </TouchableOpacity>
   );
 }
+
+function GridClipTile({
+  clip,
+  onPress,
+  onLongPress,
+}: {
+  clip: Clip;
+  onPress: () => void;
+  onLongPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={gridTileStyles.container}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      activeOpacity={0.9}
+      delayLongPress={400}
+    >
+      {/* Thumbnail */}
+      {clip.thumbnail_url ? (
+        <Image 
+          source={{ uri: clip.thumbnail_url }} 
+          style={gridTileStyles.thumbnail} 
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={gridTileStyles.placeholderThumb}>
+          <Ionicons name="play-circle-outline" size={32} color="#555" />
+        </View>
+      )}
+      
+      {/* Overlay gradient */}
+      <View style={gridTileStyles.overlay}>
+        <Text style={gridTileStyles.artist} numberOfLines={1}>{clip.artist}</Text>
+        <View style={gridTileStyles.locationRow}>
+          <Ionicons name="location" size={10} color="#fff" />
+          <Text style={gridTileStyles.location} numberOfLines={1}>{clip.location}</Text>
+        </View>
+      </View>
+
+      {/* Stats badge */}
+      <View style={gridTileStyles.statsBadge}>
+        <Ionicons name="eye" size={10} color="#fff" />
+        <Text style={gridTileStyles.statsText}>{(clip.view_count ?? 0).toLocaleString()}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const gridTileStyles = StyleSheet.create({
+  container: {
+    width: GRID_TILE_SIZE,
+    height: GRID_TILE_SIZE * 1.4, // 9:16 aspect ratio
+    marginBottom: GRID_SPACING,
+    position: 'relative',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1a1a1a',
+  },
+  placeholderThumb: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  overlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 8,
+    paddingTop: 24,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  artist: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 2,
+  },
+  location: {
+    fontSize: 9,
+    fontWeight: '500',
+    color: '#fff',
+    opacity: 0.9,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  statsBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  statsText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
+  },
+});
 
 const clipStyles = StyleSheet.create({
   card: {
@@ -678,18 +804,19 @@ export default function ProfileScreen({ navigation }: any) {
             <Text style={styles.emptyText}>Your first clip could be the most viewed. 👀</Text>
           </View>
         ) : (
-          sortedClips.map((clip) => (
-            <ClipCard
-              key={clip.id}
-              clip={clip}
-              isPinned={pinnedClipIds.includes(clip.id)}
-              onPress={() => navigation.navigate('VideoDetail', { video: clip })}
-              onLongPress={() => handleLongPressClip(clip)}
-            />
-          ))
-        )}
-        {clips.length > 0 && (
-          <Text style={styles.longPressHint}>Long press a clip to pin or delete it</Text>
+          <>
+            <View style={styles.clipsGrid}>
+              {sortedClips.map((clip) => (
+                <GridClipTile
+                  key={clip.id}
+                  clip={clip}
+                  onPress={() => navigation.navigate('VideoDetail', { video: clip })}
+                  onLongPress={() => handleLongPressClip(clip)}
+                />
+              ))}
+            </View>
+            <Text style={styles.longPressHint}>Long press a clip to pin or delete it</Text>
+          </>
         )}
       </View>
 
@@ -960,6 +1087,13 @@ const styles = StyleSheet.create({
     color: '#8B5CF6',
     marginBottom: 10,
     marginTop: -8,
+  },
+  clipsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 0,
+    marginBottom: 10,
   },
   longPressHint: {
     fontSize: 11,
