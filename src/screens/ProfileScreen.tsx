@@ -561,11 +561,16 @@ export default function ProfileScreen({ navigation }: any) {
               contentContainerStyle={styles.festivalBadgeRow}
             >
               {festivalEntries.map(([fest, info]) => (
-                <View key={fest} style={styles.festivalBadge}>
+                <TouchableOpacity
+                  key={fest}
+                  style={styles.festivalBadge}
+                  onPress={() => navigation.navigate('Search', { initialQuery: fest })}
+                  activeOpacity={0.75}
+                >
                   <Text style={styles.festivalBadgeIcon}>📍</Text>
                   <Text style={styles.festivalBadgeName} numberOfLines={2}>{fest}</Text>
                   {info.year ? <Text style={styles.festivalBadgeYear}>{info.year}</Text> : null}
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
@@ -573,25 +578,30 @@ export default function ProfileScreen({ navigation }: any) {
       })()}
 
       {/* ── Badges ── */}
-      {/* ── BADGES (All badges, locked/unlocked) ── */}
-      <View style={styles.badgesSection}>
-        <Text style={styles.badgesTitle}>BADGES</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesRow}>
-          {Object.entries(BADGES).map(([key, badge]) => {
-            const isEarned = badges.includes(key);
-            return (
-              <View key={key} style={[styles.badge, !isEarned && styles.badgeLocked]}>
-                <Text style={[styles.badgeEmoji, !isEarned && styles.badgeEmojiLocked]}>
-                  {isEarned ? badge.emoji : '🔒'}
-                </Text>
-                <Text style={[styles.badgeLabel, !isEarned && styles.badgeLabelLocked]} numberOfLines={2}>
-                  {badge.label}
-                </Text>
-              </View>
-            );
-          })}
-        </ScrollView>
-      </View>
+      {/* ── BADGES (Earned badges only) ── */}
+      {badges.length > 0 && (
+        <View style={styles.badgesSection}>
+          <Text style={styles.badgesTitle}>BADGES</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesRow}>
+            {badges.map((key) => {
+              const badge = BADGES[key];
+              if (!badge) return null;
+              return (
+                <View key={key} style={styles.badge}>
+                  <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                  <Text style={styles.badgeLabel} numberOfLines={2}>{badge.label}</Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
+      {badges.length === 0 && (
+        <View style={styles.badgesSection}>
+          <Text style={styles.badgesTitle}>BADGES</Text>
+          <Text style={styles.badgesEmpty}>Earn your first badge by uploading a clip 🎬</Text>
+        </View>
+      )}
 
       {/* ── 📌 Pinned Section ── */}
       {pinnedClips.length > 0 && (
@@ -1014,6 +1024,12 @@ const styles = StyleSheet.create({
     color: '#8B5CF6',
     letterSpacing: 2,
     marginBottom: 12,
+  },
+  badgesEmpty: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    paddingVertical: 12,
   },
   badgesRow: { gap: 10 },
   badge: {

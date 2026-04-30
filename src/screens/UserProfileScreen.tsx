@@ -23,10 +23,20 @@ import { supabase } from '../services/supabase';
 import { getOrCreateConversation } from '../services/messages';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { getUserAttendedEvents } from '../services/attendance';
+import { getUserBadges, BADGES, levelFromXp, xpForLevel, levelProgress } from '../services/xp';
 
 interface FollowCounts {
   followers: number;
   following: number;
+}
+
+function getCreatorTagline(uploadCount: number): string {
+  if (uploadCount === 0) return 'New to handsup 👋';
+  if (uploadCount <= 2) return 'Getting started 📱';
+  if (uploadCount <= 9) return 'Festival regular 🎪';
+  if (uploadCount <= 24) return 'Festival veteran 🙌';
+  if (uploadCount <= 49) return 'Festival pro 🎉';
+  return 'Festival legend 🏆';
 }
 
 export default function UserProfileScreen({ route, navigation }: any) {
@@ -47,6 +57,7 @@ export default function UserProfileScreen({ route, navigation }: any) {
   const [isBanned, setIsBanned] = useState(false);
   const [banLoading, setBanLoading] = useState(false);
   const [attendedEvents, setAttendedEvents] = useState<any[]>([]);
+  const [userBadges, setUserBadges] = useState<string[]>([]);
 
   const loadData = useCallback(async () => {
     try {
@@ -74,6 +85,8 @@ export default function UserProfileScreen({ route, navigation }: any) {
       setIsBanned(bannedStatus);
       // Load "I Was There" attended events for this user
       getUserAttendedEvents(userId).then(setAttendedEvents).catch(() => {});
+      // Load badges for this user
+      getUserBadges(userId).then(setUserBadges).catch(() => {});
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load profile');
     } finally {
@@ -141,6 +154,56 @@ export default function UserProfileScreen({ route, navigation }: any) {
         ]
       );
     }
+  };
+
+  const handleThreeDotMenu = () => {
+    Alert.alert(
+      'Options',
+      `@${profile?.username}`,
+      [
+        {
+          text: isMuted ? '🔈 Unmute user' : '🔇 Mute user',
+          onPress: handleMuteToggle,
+        },
+        {
+          text: '🚫 Block user',
+          style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Block User',
+              `Block @${profile?.username}? They won't be able to message you or see your profile.`,
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Block',
+                  style: 'destructive',
+                  onPress: () => {
+                    // Call muteUser as a simple block mechanism for now
+                    muteUser(userId)
+                      .then(() => {
+                        setIsMuted(true);
+                        Alert.alert('Blocked', `You've blocked @${profile?.username}`);
+                      })
+                      .catch(() => {});
+                  },
+                },
+              ]
+            );
+          },
+        },
+        {
+          text: '🚩 Report user',
+          onPress: () => {
+            Alert.alert(
+              'Report User',
+              `To report @${profile?.username}, please email hello@handsuplive.com with details.`,
+              [{ text: 'OK' }]
+            );
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
   };
 
   const handleBanToggle = () => {
@@ -229,6 +292,11 @@ export default function UserProfileScreen({ route, navigation }: any) {
           {/* Names */}
           <Text style={styles.displayName}>{profile.display_name ?? profile.username}</Text>
           <Text style={styles.username}>@{profile.username}</Text>
+          <Text style={styles.userTagline}>{getCreatorTagline(profile.total_uploads ?? clips.length)}</Text>
+          <View style={styles.xpRow}>
+            <Text style={styles.levelBadge}>Lv.{levelFromXp(profile.xp ?? 0)}</Text>
+            <Text style={styles.xpText}>{(profile.xp ?? 0).toLocaleString()} XP</Text>
+          </View>
 
           {profile.is_verified && (
             <View style={styles.verifiedBadge}>
@@ -279,25 +347,15 @@ export default function UserProfileScreen({ route, navigation }: any) {
               >
                 <Ionicons name="mail-outline" size={20} color="#fff" />
               </TouchableOpacity>
-            </View>
-          )}
 
-          {/* Mute button — hidden on own profile */}
-          {currentUserId !== userId && (
-            <TouchableOpacity
-              style={[styles.muteBtn, isMuted && styles.muteBtnActive]}
-              onPress={handleMuteToggle}
-              disabled={muteLoading}
-              activeOpacity={0.85}
-            >
-              {muteLoading ? (
-                <ActivityIndicator size="small" color="#aaa" />
-              ) : (
-                <Text style={styles.muteBtnText}>
-                  {isMuted ? '🔇 Muted' : '🔔 Mute'}
-                </Text>
-              )}
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.threeDotBtn}
+                onPress={handleThreeDotMenu}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="ellipsis-horizontal" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
           )}
 
           {/* Support button — shown to non-owners when creator has a support URL */}
@@ -359,8 +417,9 @@ export default function UserProfileScreen({ route, navigation }: any) {
           </View>
         </View>
 
-        {/* YOUR FESTIVALS badges */}
-        {clips.length > 0 && (() => {
+        {/* Festivals (merged: clips + attended) */}
+        {(() => {
+          // Build festival map from clips
           const festivalMap: Record<string, string> = {};
           clips.forEach((c) => {
             if (c.festival_name) {
@@ -368,48 +427,60 @@ export default function UserProfileScreen({ route, navigation }: any) {
               if (!festivalMap[c.festival_name]) festivalMap[c.festival_name] = year;
             }
           });
+          // Merge attended events (only add if not already in map)
+          attendedEvents.forEach((a) => {
+            const name = a.event?.name;
+            if (name && !festivalMap[name]) {
+              const year = a.event?.start_date ? new Date(a.event.start_date).getFullYear().toString() : '';
+              festivalMap[name] = year;
+            }
+          });
           const festivalEntries = Object.entries(festivalMap);
           if (festivalEntries.length === 0) return null;
           return (
             <View style={styles.festivalsSection}>
-              <Text style={styles.festivalsTitle}>YOUR FESTIVALS</Text>
+              <Text style={styles.festivalsTitle}>{profile.username}'s Festivals</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.festivalBadgeRow}
               >
                 {festivalEntries.map(([fest, year]) => (
-                  <View key={fest} style={styles.festivalBadge}>
+                  <TouchableOpacity
+                    key={fest}
+                    style={styles.festivalBadge}
+                    onPress={() => navigation.navigate('Search', { initialQuery: fest })}
+                    activeOpacity={0.75}
+                  >
                     <Text style={styles.festivalBadgeIcon}>📍</Text>
                     <Text style={styles.festivalBadgeName} numberOfLines={2}>{fest}</Text>
                     {year ? <Text style={styles.festivalBadgeYear}>{year}</Text> : null}
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
             </View>
           );
         })()}
 
-        {/* ATTENDED (I Was There) badges */}
-        {attendedEvents.length > 0 && (
-          <View style={styles.attendedSection}>
-            <Text style={styles.attendedTitle}>ATTENDED</Text>
+        {/* Badges (earned only) */}
+        {userBadges.length > 0 && (
+          <View style={styles.badgesSection}>
+            <Text style={styles.badgesTitle}>Achievements</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.attendedRow}
+              contentContainerStyle={styles.badgesRow}
             >
-              {attendedEvents.map((a) => (
-                <View key={a.event_id} style={styles.attendedBadge}>
-                  <Text style={styles.attendedBadgeIcon}>📍</Text>
-                  <Text style={styles.attendedBadgeName} numberOfLines={2}>{a.event?.name}</Text>
-                  {a.event?.start_date && (
-                    <Text style={styles.attendedBadgeYear}>
-                      {new Date(a.event.start_date).getFullYear()}
-                    </Text>
-                  )}
-                </View>
-              ))}
+              {userBadges.map((key) => {
+                const badge = BADGES[key];
+                if (!badge) return null;
+                return (
+                  <View key={key} style={styles.badge}>
+                    <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
+                    <Text style={styles.badgeLabel} numberOfLines={2}>{badge.label}</Text>
+                  </View>
+                );
+              })}
             </ScrollView>
           </View>
         )}
@@ -504,6 +575,24 @@ const styles = StyleSheet.create({
   avatarInitials: { color: '#fff', fontSize: 28, fontWeight: '800' },
   displayName: { fontSize: 22, fontWeight: '800', color: '#fff' },
   username: { fontSize: 14, color: '#555', marginTop: 2 },
+  userTagline: { fontSize: 13, color: '#666', fontWeight: '500', marginTop: 4 },
+  xpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 8,
+  },
+  levelBadge: {
+    backgroundColor: '#8B5CF6',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '800',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  xpText: { fontSize: 13, fontWeight: '700', color: '#fff' },
   verifiedBadge: {
     marginTop: 6,
     backgroundColor: 'rgba(139,92,246,0.15)',
@@ -525,7 +614,7 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     marginTop: 16,
-    gap: 12,
+    gap: 10,
     alignItems: 'center',
   },
   followBtn: {
@@ -544,6 +633,16 @@ const styles = StyleSheet.create({
   },
   followBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   messageBtn: {
+    backgroundColor: '#2a2a2a',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
+  },
+  threeDotBtn: {
     backgroundColor: '#2a2a2a',
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -684,6 +783,35 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   attendedBadgeYear: { color: '#10B981', fontSize: 11, fontWeight: '600', marginTop: 3 },
+
+  // Badges
+  badgesSection: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 4 },
+  badgesTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8B5CF6',
+    marginBottom: 12,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  badgesRow: { gap: 10 },
+  badge: {
+    backgroundColor: '#111',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#2a1650',
+    padding: 10,
+    alignItems: 'center',
+    width: 80,
+    gap: 6,
+  },
+  badgeEmoji: { fontSize: 26 },
+  badgeLabel: {
+    color: '#aaa',
+    fontSize: 10,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 
   // Clips list
   section: { padding: 16, paddingBottom: 100 },

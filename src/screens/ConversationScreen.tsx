@@ -15,6 +15,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -47,6 +48,8 @@ export default function ConversationScreen() {
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [hasMoreMessages, setHasMoreMessages] = useState(true);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -101,13 +104,52 @@ export default function ConversationScreen() {
 
   const loadMessages = async () => {
     try {
-      const msgs = await getMessages(conversationId);
-      setMessages(msgs);
+      // Load last 30 messages initially
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      
+      if (data) {
+        const msgs = data.reverse() as Message[];
+        setMessages(msgs);
+        setHasMoreMessages(data.length === 30);
+      }
       setLoading(false);
       scrollToBottom();
     } catch (error) {
       console.error('Failed to load messages:', error);
       setLoading(false);
+    }
+  };
+
+  const loadOlderMessages = async () => {
+    if (!hasMoreMessages || loadingOlderMessages || messages.length === 0) return;
+    
+    setLoadingOlderMessages(true);
+    try {
+      const oldestMessage = messages[0];
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .lt('created_at', oldestMessage.created_at)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      
+      if (data && data.length > 0) {
+        const olderMsgs = data.reverse() as Message[];
+        setMessages((prev) => [...olderMsgs, ...prev]);
+        setHasMoreMessages(data.length === 30);
+      } else {
+        setHasMoreMessages(false);
+      }
+    } catch (error) {
+      console.error('Failed to load older messages:', error);
+    } finally {
+      setLoadingOlderMessages(false);
     }
   };
 
@@ -143,28 +185,48 @@ export default function ConversationScreen() {
     }
   };
 
+  const getInitials = (username?: string): string => {
+    return username?.trim()?.[0]?.toUpperCase() ?? '?';
+  };
+
   const renderMessage = ({ item }: { item: Message }) => {
     const isOwnMessage = item.sender_id === currentUserId;
 
     return (
       <View style={[styles.messageContainer, isOwnMessage ? styles.ownMessage : styles.otherMessage]}>
-        <View style={[styles.messageBubble, isOwnMessage ? styles.ownBubble : styles.otherBubble]}>
-          <Text style={[styles.messageText, isOwnMessage ? styles.ownMessageText : styles.otherMessageText]}>
-            {item.body}
+        {!isOwnMessage && (
+          <TouchableOpacity
+            onPress={() => (navigation as any).navigate('UserProfile', { userId: otherUser.id })}
+            style={styles.avatarContainer}
+          >
+            {otherUser.avatar_url ? (
+              <Image source={{ uri: otherUser.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <Text style={styles.avatarInitials}>{getInitials(otherUser.username)}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+        <View style={styles.messageContent}>
+          <View style={[styles.messageBubble, isOwnMessage ? styles.ownBubble : styles.otherBubble]}>
+            <Text style={[styles.messageText, isOwnMessage ? styles.ownMessageText : styles.otherMessageText]}>
+              {item.body}
+            </Text>
+            {isOwnMessage && (
+              <View style={styles.readReceiptContainer}>
+                {item.read ? (
+                  <Text style={styles.readReceipt}>✓✓</Text>
+                ) : (
+                  <Text style={styles.unreadReceipt}>✓</Text>
+                )}
+              </View>
+            )}
+          </View>
+          <Text style={[styles.messageTime, isOwnMessage ? styles.ownMessageTime : styles.otherMessageTime]}>
+            {formatTime(item.created_at)}
           </Text>
-          {isOwnMessage && (
-            <View style={styles.readReceiptContainer}>
-              {item.read ? (
-                <Text style={styles.readReceipt}>✓✓</Text>
-              ) : (
-                <Text style={styles.unreadReceipt}>✓</Text>
-              )}
-            </View>
-          )}
         </View>
-        <Text style={[styles.messageTime, isOwnMessage ? styles.ownMessageTime : styles.otherMessageTime]}>
-          {formatTime(item.created_at)}
-        </Text>
       </View>
     );
   };
@@ -193,6 +255,21 @@ export default function ConversationScreen() {
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesList}
           onContentSizeChange={scrollToBottom}
+          ListHeaderComponent={
+            hasMoreMessages ? (
+              <TouchableOpacity
+                style={styles.loadOlderButton}
+                onPress={loadOlderMessages}
+                disabled={loadingOlderMessages}
+              >
+                {loadingOlderMessages ? (
+                  <ActivityIndicator size="small" color="#8B5CF6" />
+                ) : (
+                  <Text style={styles.loadOlderText}>Load older messages</Text>
+                )}
+              </TouchableOpacity>
+            ) : null
+          }
         />
       )}
 
@@ -262,17 +339,54 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  loadOlderButton: {
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  loadOlderText: {
+    color: '#8B5CF6',
+    fontSize: 13,
+    fontWeight: '600',
+  },
   messageContainer: {
     marginVertical: 4,
     maxWidth: '75%',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   ownMessage: {
     alignSelf: 'flex-end',
-    alignItems: 'flex-end',
+    flexDirection: 'row-reverse',
   },
   otherMessage: {
     alignSelf: 'flex-start',
-    alignItems: 'flex-start',
+  },
+  avatarContainer: {
+    marginRight: 8,
+    marginBottom: 2,
+  },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  avatarPlaceholder: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitials: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  messageContent: {
+    flex: 1,
   },
   messageBubble: {
     paddingHorizontal: 14,
