@@ -70,8 +70,7 @@ export default function ConversationScreen() {
           filter: `conversation_id=eq.${conversationId}`,
         },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
-          scrollToBottom();
+          setMessages((prev) => [payload.new as Message, ...prev]);
         }
       )
       .on(
@@ -104,7 +103,7 @@ export default function ConversationScreen() {
 
   const loadMessages = async () => {
     try {
-      // Load last 30 messages initially
+      // Load last 30 messages initially (most recent first for inverted list)
       const { data } = await supabase
         .from('messages')
         .select('*')
@@ -113,12 +112,10 @@ export default function ConversationScreen() {
         .limit(30);
       
       if (data) {
-        const msgs = data.reverse() as Message[];
-        setMessages(msgs);
+        setMessages(data as Message[]);
         setHasMoreMessages(data.length === 30);
       }
       setLoading(false);
-      scrollToBottom();
     } catch (error) {
       console.error('Failed to load messages:', error);
       setLoading(false);
@@ -130,7 +127,8 @@ export default function ConversationScreen() {
     
     setLoadingOlderMessages(true);
     try {
-      const oldestMessage = messages[0];
+      // Get the oldest message (last in array since it's inverted)
+      const oldestMessage = messages[messages.length - 1];
       const { data } = await supabase
         .from('messages')
         .select('*')
@@ -140,8 +138,8 @@ export default function ConversationScreen() {
         .limit(30);
       
       if (data && data.length > 0) {
-        const olderMsgs = data.reverse() as Message[];
-        setMessages((prev) => [...olderMsgs, ...prev]);
+        // Append to end of array (shows at top of inverted list)
+        setMessages((prev) => [...prev, ...(data as Message[])]);
         setHasMoreMessages(data.length === 30);
       } else {
         setHasMoreMessages(false);
@@ -264,19 +262,14 @@ export default function ConversationScreen() {
           renderItem={renderMessage}
           contentContainerStyle={styles.messagesList}
           onContentSizeChange={scrollToBottom}
-          ListHeaderComponent={
-            hasMoreMessages ? (
-              <TouchableOpacity
-                style={styles.loadOlderButton}
-                onPress={loadOlderMessages}
-                disabled={loadingOlderMessages}
-              >
-                {loadingOlderMessages ? (
-                  <ActivityIndicator size="small" color="#8B5CF6" />
-                ) : (
-                  <Text style={styles.loadOlderText}>Load older messages</Text>
-                )}
-              </TouchableOpacity>
+          inverted
+          onEndReached={loadOlderMessages}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
+            hasMoreMessages && loadingOlderMessages ? (
+              <View style={styles.loadOlderButton}>
+                <ActivityIndicator size="small" color="#8B5CF6" />
+              </View>
             ) : null
           }
         />

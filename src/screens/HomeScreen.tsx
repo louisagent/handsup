@@ -211,7 +211,7 @@ export default function HomeScreen({ navigation }: any) {
       }
       
       const [trendingData, recentData, followingData, mutedIds, repostData, forYouData] = await Promise.all([
-        getTrendingClips(3),
+        getTrendingClips(5),
         getRecentClips(PAGE_SIZE, 0),
         getFollowingClips(20),
         getMutedUserIds(),
