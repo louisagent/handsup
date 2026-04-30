@@ -146,3 +146,55 @@ export async function searchEvents(query: string): Promise<Event[]> {
   if (error) throw error;
   return data ?? [];
 }
+
+// ============================================================
+// Ride Offers / Transport
+// ============================================================
+
+export interface RideOffer {
+  id: string;
+  event_id: string;
+  user_id: string;
+  type: 'offer' | 'request';
+  from_location: string;
+  seats_available?: number | null;
+  departure_time?: string | null;
+  notes?: string | null;
+  contact_info?: string | null;
+  created_at: string;
+  user?: { username: string; avatar_url: string | null };
+}
+
+export async function getRideOffers(eventId: string): Promise<RideOffer[]> {
+  const { data, error } = await supabase
+    .from('ride_offers')
+    .select('*, user:profiles!user_id(username, avatar_url)')
+    .eq('event_id', eventId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function postRideOffer(params: {
+  eventId: string;
+  type: 'offer' | 'request';
+  fromLocation: string;
+  seatsAvailable?: number;
+  departureTime?: string;
+  notes?: string;
+  contactInfo?: string;
+}): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { error } = await supabase.from('ride_offers').insert({
+    event_id: params.eventId,
+    user_id: user.id,
+    type: params.type,
+    from_location: params.fromLocation,
+    seats_available: params.seatsAvailable ?? null,
+    departure_time: params.departureTime ?? null,
+    notes: params.notes ?? null,
+    contact_info: params.contactInfo ?? null,
+  });
+  if (error) throw error;
+}

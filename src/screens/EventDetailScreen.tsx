@@ -25,7 +25,7 @@ import * as Notifications from 'expo-notifications';
 import { FestivalEvent, SetTime } from '../data/eventsData';
 import { Clip, Event as SupabaseEvent } from '../types';
 import { getClipsByEvent, recordDownload } from '../services/clips';
-import { getEventMemberCount } from '../services/events';
+import { getEventMemberCount, getRideOffers, postRideOffer, RideOffer } from '../services/events';
 import { supabase } from '../services/supabase';
 import { markAttended, unmarkAttended, hasAttended, getAttendeeCount } from '../services/attendance';
 import * as Haptics from 'expo-haptics';
@@ -87,7 +87,7 @@ function normaliseEvent(raw: FestivalEvent | SupabaseEvent): FestivalEvent {
 export default function EventDetailScreen({ route, navigation }: any) {
   const rawEvent: FestivalEvent | SupabaseEvent = route.params?.event;
   const event: FestivalEvent = normaliseEvent(rawEvent);
-  const [activeTab, setActiveTab] = useState<'clips' | 'lineup' | 'info' | 'about' | 'discussion'>('clips');
+  const [activeTab, setActiveTab] = useState<'clips' | 'lineup' | 'info' | 'about' | 'discussion' | 'transport'>('clips');
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -123,6 +123,20 @@ export default function EventDetailScreen({ route, navigation }: any) {
   const [discReplies, setDiscReplies] = useState<Record<string, EventDiscussion[]>>({});
   const [discReplyText, setDiscReplyText] = useState<Record<string, string>>({});
   const [discReplyPosting, setDiscReplyPosting] = useState<Record<string, boolean>>({});
+
+  // Transport tab state
+  const [rideOffers, setRideOffers] = useState<RideOffer[]>([]);
+  const [transportLoading, setTransportLoading] = useState(false);
+  const [showRideForm, setShowRideForm] = useState(false);
+  const [rideFormType, setRideFormType] = useState<'offer' | 'request'>('offer');
+  const [rideFormData, setRideFormData] = useState({
+    fromLocation: '',
+    seatsAvailable: '',
+    departureTime: '',
+    notes: '',
+    contactInfo: '',
+  });
+  const [ridePosting, setRidePosting] = useState(false);
 
   // Pulsing green dot for "live now"
   const greenPulseAnim = useRef(new Animated.Value(1)).current;
@@ -229,6 +243,19 @@ export default function EventDetailScreen({ route, navigation }: any) {
     if (activeTab === 'discussion') loadEventDiscussions();
   }, [activeTab, loadEventDiscussions]);
 
+  const loadRideOffers = useCallback(async () => {
+    setTransportLoading(true);
+    try {
+      const data = await getRideOffers(event.id);
+      setRideOffers(data);
+    } catch {}
+    finally { setTransportLoading(false); }
+  }, [event.id]);
+
+  useEffect(() => {
+    if (activeTab === 'transport') loadRideOffers();
+  }, [activeTab, loadRideOffers]);
+
   const handlePostEventDiscussion = async () => {
     if (!newDiscPost.trim()) return;
     setDiscPosting(true);
@@ -279,6 +306,33 @@ export default function EventDetailScreen({ route, navigation }: any) {
       Alert.alert('Error', e?.message ?? 'Could not post reply.');
     } finally {
       setDiscReplyPosting((prev) => ({ ...prev, [parentId]: false }));
+    }
+  };
+
+  const handlePostRideOffer = async () => {
+    if (!rideFormData.fromLocation.trim()) {
+      Alert.alert('Missing info', 'Please enter a location.');
+      return;
+    }
+    setRidePosting(true);
+    try {
+      await postRideOffer({
+        eventId: event.id,
+        type: rideFormType,
+        fromLocation: rideFormData.fromLocation.trim(),
+        seatsAvailable: rideFormType === 'offer' && rideFormData.seatsAvailable ? parseInt(rideFormData.seatsAvailable) : undefined,
+        departureTime: rideFormData.departureTime.trim() || undefined,
+        notes: rideFormData.notes.trim() || undefined,
+        contactInfo: rideFormData.contactInfo.trim() || undefined,
+      });
+      setRideFormData({ fromLocation: '', seatsAvailable: '', departureTime: '', notes: '', contactInfo: '' });
+      setShowRideForm(false);
+      loadRideOffers();
+      Alert.alert('Posted!', 'Your ride post is now live.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Could not post.');
+    } finally {
+      setRidePosting(false);
     }
   };
 
@@ -872,6 +926,14 @@ export default function EventDetailScreen({ route, navigation }: any) {
           >
             <Text style={[styles.tabText, activeTab === 'discussion' && styles.tabTextActive]}>
               💬 Chat
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'transport' && styles.tabActive]}
+            onPress={() => setActiveTab('transport')}
+          >
+            <Text style={[styles.tabText, activeTab === 'transport' && styles.tabTextActive]}>
+              🚗 Transport
             </Text>
           </TouchableOpacity>
         </View>
@@ -1496,6 +1558,132 @@ export default function EventDetailScreen({ route, navigation }: any) {
                 )}
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+
+        {/* ══════════════ TRANSPORT TAB ══════════════ */}
+        {activeTab === 'transport' && (
+          <View style={styles.transportSection}>
+            {/* Action buttons */}
+            {!showRideForm && (
+              <View style={styles.transportActions}>
+                <TouchableOpacity
+                  style={styles.transportActionBtn}
+                  onPress={() => { setRideFormType('offer'); setShowRideForm(true); }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.transportActionBtnText}>🚗 Offer a Ride</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.transportActionBtn, styles.transportActionBtnSecondary]}
+                  onPress={() => { setRideFormType('request'); setShowRideForm(true); }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.transportActionBtnText, styles.transportActionBtnTextSecondary]}>🙋 Request a Ride</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Ride form modal */}
+            {showRideForm && (
+              <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.rideFormWrap}>
+                <Text style={styles.rideFormTitle}>{rideFormType === 'offer' ? '🚗 Offer a Ride' : '🙋 Request a Ride'}</Text>
+                <TextInput
+                  style={styles.rideFormInput}
+                  placeholder="From location (e.g. Melbourne CBD)"
+                  placeholderTextColor="#555"
+                  value={rideFormData.fromLocation}
+                  onChangeText={(t) => setRideFormData((prev) => ({ ...prev, fromLocation: t }))}
+                />
+                {rideFormType === 'offer' && (
+                  <TextInput
+                    style={styles.rideFormInput}
+                    placeholder="Seats available"
+                    placeholderTextColor="#555"
+                    keyboardType="number-pad"
+                    value={rideFormData.seatsAvailable}
+                    onChangeText={(t) => setRideFormData((prev) => ({ ...prev, seatsAvailable: t }))}
+                  />
+                )}
+                <TextInput
+                  style={styles.rideFormInput}
+                  placeholder="Departure time (e.g. Sat 6pm)"
+                  placeholderTextColor="#555"
+                  value={rideFormData.departureTime}
+                  onChangeText={(t) => setRideFormData((prev) => ({ ...prev, departureTime: t }))}
+                />
+                <TextInput
+                  style={[styles.rideFormInput, styles.rideFormInputMulti]}
+                  placeholder="Notes (optional)"
+                  placeholderTextColor="#555"
+                  value={rideFormData.notes}
+                  onChangeText={(t) => setRideFormData((prev) => ({ ...prev, notes: t }))}
+                  multiline
+                />
+                <TextInput
+                  style={styles.rideFormInput}
+                  placeholder="Contact info (phone/Instagram)"
+                  placeholderTextColor="#555"
+                  value={rideFormData.contactInfo}
+                  onChangeText={(t) => setRideFormData((prev) => ({ ...prev, contactInfo: t }))}
+                />
+                <View style={styles.rideFormBtnRow}>
+                  <TouchableOpacity
+                    style={[styles.rideFormBtn, styles.rideFormBtnCancel]}
+                    onPress={() => { setShowRideForm(false); setRideFormData({ fromLocation: '', seatsAvailable: '', departureTime: '', notes: '', contactInfo: '' }); }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.rideFormBtnCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.rideFormBtn, styles.rideFormBtnSubmit]}
+                    onPress={handlePostRideOffer}
+                    disabled={ridePosting}
+                    activeOpacity={0.85}
+                  >
+                    {ridePosting ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.rideFormBtnSubmitText}>Post</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </KeyboardAvoidingView>
+            )}
+
+            {/* Ride offers list */}
+            {transportLoading ? (
+              <ActivityIndicator color="#8B5CF6" style={{ marginTop: 24 }} />
+            ) : rideOffers.length === 0 ? (
+              <View style={styles.transportEmpty}>
+                <Text style={styles.transportEmptyEmoji}>🚗</Text>
+                <Text style={styles.transportEmptyText}>No ride posts yet. Be the first!</Text>
+              </View>
+            ) : (
+              rideOffers.map((offer) => (
+                <View key={offer.id} style={styles.rideCard}>
+                  <View style={styles.rideCardHeader}>
+                    <View style={[styles.rideTypeBadge, offer.type === 'offer' ? styles.rideTypeBadgeOffer : styles.rideTypeBadgeRequest]}>
+                      <Text style={styles.rideTypeBadgeText}>{offer.type === 'offer' ? 'OFFER' : 'REQUEST'}</Text>
+                    </View>
+                    <Text style={styles.rideCardUsername}>@{offer.user?.username ?? 'user'}</Text>
+                  </View>
+                  <Text style={styles.rideCardLocation}>📍 From: {offer.from_location}</Text>
+                  {offer.seats_available != null && (
+                    <Text style={styles.rideCardSeats}>🪑 {offer.seats_available} seat{offer.seats_available !== 1 ? 's' : ''}</Text>
+                  )}
+                  {offer.departure_time && (
+                    <Text style={styles.rideCardTime}>🕒 {offer.departure_time}</Text>
+                  )}
+                  {offer.notes && (
+                    <Text style={styles.rideCardNotes}>{offer.notes}</Text>
+                  )}
+                  {offer.contact_info && (
+                    <Text style={styles.rideCardContact}>📱 {offer.contact_info}</Text>
+                  )}
+                </View>
+              ))
+            )}
           </View>
         )}
       </ScrollView>
@@ -2271,4 +2459,54 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#8B5CF6',
     alignItems: 'center', justifyContent: 'center',
   },
+
+  // Transport tab
+  transportSection: { padding: 16, paddingBottom: 60 },
+  transportActions: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  transportActionBtn: {
+    flex: 1, backgroundColor: '#8B5CF6', borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  transportActionBtnSecondary: { backgroundColor: '#1a1228', borderWidth: 1, borderColor: '#8B5CF644' },
+  transportActionBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  transportActionBtnTextSecondary: { color: '#A78BFA' },
+  rideFormWrap: {
+    backgroundColor: '#111', borderRadius: 14, borderWidth: 1,
+    borderColor: '#222', padding: 16, marginBottom: 16,
+  },
+  rideFormTitle: { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  rideFormInput: {
+    backgroundColor: '#1a1a1a', borderRadius: 10, borderWidth: 1,
+    borderColor: '#333', color: '#fff', paddingHorizontal: 14, paddingVertical: 11,
+    fontSize: 14, marginBottom: 10,
+  },
+  rideFormInputMulti: { minHeight: 70, textAlignVertical: 'top' },
+  rideFormBtnRow: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  rideFormBtn: {
+    flex: 1, borderRadius: 10, paddingVertical: 12, alignItems: 'center',
+  },
+  rideFormBtnCancel: { backgroundColor: '#222', borderWidth: 1, borderColor: '#333' },
+  rideFormBtnCancelText: { color: '#888', fontWeight: '700', fontSize: 14 },
+  rideFormBtnSubmit: { backgroundColor: '#8B5CF6' },
+  rideFormBtnSubmitText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  transportEmpty: { padding: 36, alignItems: 'center', gap: 8 },
+  transportEmptyEmoji: { fontSize: 40 },
+  transportEmptyText: { color: '#555', fontSize: 15, textAlign: 'center', fontWeight: '600' },
+  rideCard: {
+    backgroundColor: '#111', borderRadius: 12, borderWidth: 1,
+    borderColor: '#222', padding: 14, marginBottom: 10,
+  },
+  rideCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  rideTypeBadge: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6,
+  },
+  rideTypeBadgeOffer: { backgroundColor: '#1a3d1a' },
+  rideTypeBadgeRequest: { backgroundColor: '#1a1a3d' },
+  rideTypeBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+  rideCardUsername: { color: '#8B5CF6', fontWeight: '700', fontSize: 13 },
+  rideCardLocation: { color: '#ddd', fontSize: 14, marginBottom: 4, fontWeight: '600' },
+  rideCardSeats: { color: '#aaa', fontSize: 13, marginBottom: 3 },
+  rideCardTime: { color: '#aaa', fontSize: 13, marginBottom: 3 },
+  rideCardNotes: { color: '#999', fontSize: 13, marginTop: 6, lineHeight: 18 },
+  rideCardContact: { color: '#8B5CF6', fontSize: 13, marginTop: 6, fontWeight: '600' },
 });

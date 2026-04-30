@@ -28,6 +28,7 @@ import * as Haptics from 'expo-haptics';
 import { getArtistClaim, getMyArtistClaim, ArtistClaim } from '../services/artistClaim';
 import { getArtistFestivalAppearances } from '../services/lineups';
 import { supabase } from '../services/supabase';
+import { getArtistByName, Artist } from '../services/artists';
 import {
   getArtistDiscussions,
   getDiscussionReplies,
@@ -64,6 +65,7 @@ export default function ArtistScreen({ route, navigation }: any) {
   const [artistClaim, setArtistClaim] = useState<ArtistClaim | null>(null);
   const [myClaim, setMyClaim] = useState<ArtistClaim | null>(null);
   const [upcomingGigs, setUpcomingGigs] = useState<any[]>([]);
+  const [artistProfile, setArtistProfile] = useState<Artist | null>(null);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<'clips' | 'discussion'>('clips');
@@ -184,14 +186,16 @@ export default function ArtistScreen({ route, navigation }: any) {
     }
   };
 
-  // Load artist claim data
+  // Load artist claim data and profile
   useEffect(() => {
     Promise.all([
       getArtistClaim(artist).catch(() => null),
       getMyArtistClaim(artist).catch(() => null),
-    ]).then(([claim, myClaimData]) => {
+      getArtistByName(artist).catch(() => null),
+    ]).then(([claim, myClaimData, profile]) => {
       setArtistClaim(claim);
       setMyClaim(myClaimData);
+      setArtistProfile(profile);
     });
     // Load festival appearances
     getArtistFestivalAppearances(artist)
@@ -343,7 +347,15 @@ export default function ArtistScreen({ route, navigation }: any) {
         <View style={styles.hero}>
           <View style={styles.heroGlow} />
           <View style={styles.artistAvatar}>
-            <Text style={styles.avatarEmoji}>🎤</Text>
+            {artistProfile?.image_url ? (
+              <Image 
+                source={{ uri: artistProfile.image_url }} 
+                style={{ width: 88, height: 88, borderRadius: 44 }} 
+                resizeMode="cover"
+              />
+            ) : (
+              <Text style={styles.avatarEmoji}>🎤</Text>
+            )}
           </View>
           <Text style={styles.artistName}>{artist}</Text>
           {!loading && (

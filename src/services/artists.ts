@@ -36,6 +36,15 @@ export async function getArtist(slug: string): Promise<Artist | null> {
   return data;
 }
 
+export async function getArtistByName(name: string): Promise<Artist | null> {
+  const { data } = await supabase
+    .from('artists')
+    .select('*')
+    .ilike('name', name)
+    .maybeSingle();
+  return data ?? null;
+}
+
 export async function searchArtists(query: string): Promise<Artist[]> {
   const { data, error } = await supabase
     .from('artists')

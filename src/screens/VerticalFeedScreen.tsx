@@ -915,17 +915,7 @@ const styles = StyleSheet.create({
     ...SHADOW,
   },
 
-  // Mute button — top-right
-  muteBtn: {
-    position: 'absolute',
-    top: 60,
-    right: 16,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 20,
-    padding: 8,
-  },
-
-  // Details button — below mute button, top-right
+  // Details button — top-right
   detailsBtn: {
     position: 'absolute',
     top: 112,
