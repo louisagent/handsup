@@ -17,6 +17,8 @@ export interface Profile {
   created_at: string;
   /** ID of the clip pinned to the top of this user's profile. */
   pinned_clip_id?: string;
+  /** IDs of up to 3 clips pinned to the top of this user's profile. */
+  pinned_clip_ids?: string[];
   /** Ko-fi, PayPal, or other support/tip link. */
   support_url?: string | null;
   /** XP points earned through actions (uploads, likes, comments, etc.) */

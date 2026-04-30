@@ -85,6 +85,16 @@ export default function UploadScreen({ route }: any) {
   // Track auto-filled fields
   const [dateAutoFilled, setDateAutoFilled] = useState(true);
   const [locationAutoFilled, setLocationAutoFilled] = useState(false);
+  
+  // ── Autocomplete state (Feature 2)
+  const [artistSuggestions, setArtistSuggestions] = useState<string[]>([]);
+  const [showArtistSuggestions, setShowArtistSuggestions] = useState(false);
+  const [festivalSuggestions, setFestivalSuggestions] = useState<string[]>([]);
+  const [showFestivalSuggestions, setShowFestivalSuggestions] = useState(false);
+  
+  // ── B2B artist support (Feature 3)
+  const [b2bArtists, setB2bArtists] = useState<string[]>([]);
+  const [b2bSuggestions, setB2bSuggestions] = useState<{ [index: number]: string[] }>({});
 
   // ── Step / flow
   const [step, setStep] = useState<1 | 2>(1);
@@ -150,6 +160,80 @@ export default function UploadScreen({ route }: any) {
     }
     return undefined;
   }, [festival]);
+  
+  // ── Artist autocomplete (Feature 2)
+  useEffect(() => {
+    if (artist.trim().length < 2) {
+      setArtistSuggestions([]);
+      setShowArtistSuggestions(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const text = artist.trim();
+        const [artistsData, clipsData] = await Promise.all([
+          supabase.from('artists').select('name').ilike('name', `%${text}%`).limit(6),
+          supabase.from('clips').select('artist').ilike('artist', `%${text}%`).limit(6),
+        ]);
+        const artistNames = (artistsData.data ?? []).map((a: any) => a.name);
+        const clipArtists = (clipsData.data ?? []).map((c: any) => c.artist);
+        const merged = [...new Set([...artistNames, ...clipArtists])];
+        setArtistSuggestions(merged.slice(0, 6));
+        setShowArtistSuggestions(merged.length > 0);
+      } catch {
+        setArtistSuggestions([]);
+        setShowArtistSuggestions(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [artist]);
+  
+  // ── Festival autocomplete (Feature 2)
+  useEffect(() => {
+    if (festival.trim().length < 2) {
+      setFestivalSuggestions([]);
+      setShowFestivalSuggestions(false);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const text = festival.trim();
+        const [eventsData, clipsData] = await Promise.all([
+          supabase.from('events').select('festival_name').ilike('festival_name', `%${text}%`).limit(6),
+          supabase.from('clips').select('festival_name').ilike('festival_name', `%${text}%`).limit(6),
+        ]);
+        const eventNames = (eventsData.data ?? []).map((e: any) => e.festival_name).filter(Boolean);
+        const clipFestivals = (clipsData.data ?? []).map((c: any) => c.festival_name).filter(Boolean);
+        const merged = [...new Set([...eventNames, ...clipFestivals])];
+        setFestivalSuggestions(merged.slice(0, 6));
+        setShowFestivalSuggestions(merged.length > 0);
+      } catch {
+        setFestivalSuggestions([]);
+        setShowFestivalSuggestions(false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [festival]);
+  
+  // ── B2B artist autocomplete (Feature 3)
+  const fetchB2BSuggestions = async (text: string, index: number) => {
+    if (text.trim().length < 2) {
+      setB2bSuggestions((prev) => ({ ...prev, [index]: [] }));
+      return;
+    }
+    try {
+      const [artistsData, clipsData] = await Promise.all([
+        supabase.from('artists').select('name').ilike('name', `%${text}%`).limit(6),
+        supabase.from('clips').select('artist').ilike('artist', `%${text}%`).limit(6),
+      ]);
+      const artistNames = (artistsData.data ?? []).map((a: any) => a.name);
+      const clipArtists = (clipsData.data ?? []).map((c: any) => c.artist);
+      const merged = [...new Set([...artistNames, ...clipArtists])];
+      setB2bSuggestions((prev) => ({ ...prev, [index]: merged.slice(0, 6) }));
+    } catch {
+      setB2bSuggestions((prev) => ({ ...prev, [index]: [] }));
+    }
+  };
 
   // On mount: check AsyncStorage for last upload event (pre-fill if < 2 days old)
   useEffect(() => {
@@ -407,10 +491,13 @@ export default function UploadScreen({ route }: any) {
         ? `[trim:${trimStartMs}-${trimEndMs}ms] `
         : '';
       const finalDescription = trimNote + (description || '');
+      
+      // ── Combine B2B artists (Feature 3)
+      const fullArtist = [artist, ...b2bArtists.filter((a) => a.trim())].join(' b2b ');
 
       // Insert metadata
       const uploadedClip = await uploadClip({
-        artist,
+        artist: fullArtist,
         festival_name: festival,
         location,
         clip_date: dateString,
@@ -438,14 +525,17 @@ export default function UploadScreen({ route }: any) {
           });
       }
 
-      setSubmittedArtist(artist);
+      setSubmittedArtist(fullArtist);
       setSubmittedFestival(festival);
       setSubmittedClipId(uploadedClip?.id ?? null);
-      trackEvent('clip_upload', { artist, festival }).catch(() => {});
+      trackEvent('clip_upload', { artist: fullArtist, festival }).catch(() => {});
 
       // Auto-create artist profile if it doesn't exist (fire and forget)
       if (artist) {
         createArtistIfNotExists(artist).catch(() => {});
+      }
+      for (const b2b of b2bArtists.filter((a) => a.trim())) {
+        createArtistIfNotExists(b2b).catch(() => {});
       }
 
       // Save last event to AsyncStorage for pre-fill on next upload
@@ -891,8 +981,105 @@ export default function UploadScreen({ route }: any) {
           placeholder="e.g. Tame Impala"
           placeholderTextColor="#444"
           value={artist}
-          onChangeText={setArtist}
+          onChangeText={(text) => {
+            setArtist(text);
+            setShowArtistSuggestions(true);
+          }}
+          onFocus={() => setShowArtistSuggestions(artistSuggestions.length > 0)}
+          onBlur={() => setTimeout(() => setShowArtistSuggestions(false), 200)}
         />
+        {showArtistSuggestions && artistSuggestions.length > 0 && (
+          <View style={styles.autocompleteDropdown}>
+            {artistSuggestions.map((suggestion, i) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.autocompleteItem}
+                onPress={() => {
+                  setArtist(suggestion);
+                  setShowArtistSuggestions(false);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.autocompleteText}>{suggestion}</Text>
+              </TouchableOpacity>
+            ))}
+            {artistSuggestions.length === 0 && artist.trim().length >= 2 && (
+              <TouchableOpacity
+                style={styles.autocompleteItem}
+                onPress={() => {
+                  createArtistIfNotExists(artist.trim()).catch(() => {});
+                  setShowArtistSuggestions(false);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.autocompleteTextAdd}>＋ Add '{artist.trim()}' as new artist</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+        
+        {/* B2B Artists (Feature 3) */}
+        {b2bArtists.map((b2b, index) => (
+          <View key={index} style={styles.b2bArtistRow}>
+            <Text style={styles.labelSmall}>B2B {index + 1}</Text>
+            <View style={styles.b2bInputRow}>
+              <TextInput
+                style={[styles.input, styles.b2bInput]}
+                placeholder="e.g. Fisher"
+                placeholderTextColor="#444"
+                value={b2b}
+                onChangeText={(text) => {
+                  const updated = [...b2bArtists];
+                  updated[index] = text;
+                  setB2bArtists(updated);
+                  fetchB2BSuggestions(text, index);
+                }}
+              />
+              <TouchableOpacity
+                style={styles.removeB2bBtn}
+                onPress={() => {
+                  setB2bArtists((prev) => prev.filter((_, i) => i !== index));
+                  setB2bSuggestions((prev) => {
+                    const copy = { ...prev };
+                    delete copy[index];
+                    return copy;
+                  });
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.removeB2bText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {b2bSuggestions[index] && b2bSuggestions[index].length > 0 && (
+              <View style={styles.autocompleteDropdown}>
+                {b2bSuggestions[index].map((suggestion, i) => (
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.autocompleteItem}
+                    onPress={() => {
+                      const updated = [...b2bArtists];
+                      updated[index] = suggestion;
+                      setB2bArtists(updated);
+                      setB2bSuggestions((prev) => ({ ...prev, [index]: [] }));
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.autocompleteText}>{suggestion}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        ))}
+        {b2bArtists.length < 3 && (
+          <TouchableOpacity
+            style={styles.addB2bBtn}
+            onPress={() => setB2bArtists((prev) => [...prev, ''])}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.addB2bText}>Add B2B +</Text>
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.label}>Festival / Event *</Text>
         <TextInput
@@ -900,8 +1087,39 @@ export default function UploadScreen({ route }: any) {
           placeholder="e.g. Laneway Festival"
           placeholderTextColor="#444"
           value={festival}
-          onChangeText={setFestival}
+          onChangeText={(text) => {
+            setFestival(text);
+            setShowFestivalSuggestions(true);
+          }}
+          onFocus={() => setShowFestivalSuggestions(festivalSuggestions.length > 0)}
+          onBlur={() => setTimeout(() => setShowFestivalSuggestions(false), 200)}
         />
+        {showFestivalSuggestions && festivalSuggestions.length > 0 && (
+          <View style={styles.autocompleteDropdown}>
+            {festivalSuggestions.map((suggestion, i) => (
+              <TouchableOpacity
+                key={i}
+                style={styles.autocompleteItem}
+                onPress={() => {
+                  setFestival(suggestion);
+                  setShowFestivalSuggestions(false);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.autocompleteText}>{suggestion}</Text>
+              </TouchableOpacity>
+            ))}
+            {festivalSuggestions.length === 0 && festival.trim().length >= 2 && (
+              <TouchableOpacity
+                style={styles.autocompleteItem}
+                onPress={() => setShowFestivalSuggestions(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.autocompleteTextAdd}>＋ Add '{festival.trim()}' as new festival</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Pre-fill hint */}
         {prefilled && !prefillDismissed && (
@@ -1875,5 +2093,84 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#444',
     textAlign: 'center',
+  },
+  
+  // Autocomplete (Feature 2)
+  autocompleteDropdown: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#8B5CF6',
+    marginTop: -12,
+    marginBottom: 12,
+    maxHeight: 200,
+    overflow: 'hidden',
+    zIndex: 100,
+  },
+  autocompleteItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a2a',
+  },
+  autocompleteText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  autocompleteTextAdd: {
+    color: '#8B5CF6',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
+  // B2B Artists (Feature 3)
+  b2bArtistRow: {
+    marginBottom: 12,
+  },
+  labelSmall: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8B5CF6',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  b2bInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  b2bInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  removeB2bBtn: {
+    backgroundColor: '#2a1a1a',
+    borderRadius: 12,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#EF444433',
+  },
+  removeB2bText: {
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  addB2bBtn: {
+    backgroundColor: 'transparent',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    marginBottom: 16,
+  },
+  addB2bText: {
+    color: '#8B5CF6',
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

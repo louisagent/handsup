@@ -663,3 +663,54 @@ export async function getForYouFeed(limit = 20): Promise<Clip[]> {
   result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   return result;
 }
+
+// ── User Leaderboard ───────────────────────────────────────
+
+export interface UserLeaderboardEntry {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  is_verified: boolean;
+  total_views: number;
+  total_uploads: number;
+  total_downloads: number;
+}
+
+export async function getUserLeaderboard(limit = 20): Promise<UserLeaderboardEntry[]> {
+  // Aggregate clips by uploader
+  const { data: clips, error } = await supabase
+    .from('clips')
+    .select('uploader_id, view_count, download_count, uploader:profiles!uploader_id(id, username, avatar_url, is_verified)')
+    .eq('is_approved', true)
+    .not('uploader_id', 'is', null);
+
+  if (error || !clips) return [];
+
+  // Aggregate by user
+  const userMap = new Map<string, UserLeaderboardEntry>();
+  for (const clip of clips) {
+    const u = clip.uploader as any;
+    if (!u) continue;
+    const existing = userMap.get(clip.uploader_id) ?? {
+      user_id: clip.uploader_id,
+      username: u.username ?? 'Unknown',
+      avatar_url: u.avatar_url ?? null,
+      is_verified: u.is_verified ?? false,
+      total_views: 0,
+      total_uploads: 0,
+      total_downloads: 0,
+    };
+    existing.total_views += clip.view_count ?? 0;
+    existing.total_uploads += 1;
+    existing.total_downloads += clip.download_count ?? 0;
+    userMap.set(clip.uploader_id, existing);
+  }
+
+  // Sort: primary = total_views desc, secondary = total_uploads desc
+  return Array.from(userMap.values())
+    .sort((a, b) => {
+      if (b.total_views !== a.total_views) return b.total_views - a.total_views;
+      return b.total_uploads - a.total_uploads;
+    })
+    .slice(0, limit);
+}

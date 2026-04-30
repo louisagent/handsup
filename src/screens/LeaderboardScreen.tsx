@@ -14,8 +14,9 @@ import {
   Dimensions,
   RefreshControl,
   ActivityIndicator,
+  Image,
 } from 'react-native';
-import { getLeaderboard, getLeaderboardByEvent } from '../services/clips';
+import { getLeaderboard, getLeaderboardByEvent, getUserLeaderboard, UserLeaderboardEntry } from '../services/clips';
 import { Clip } from '../types';
 import { supabase } from '../services/supabase';
 import { getEvents } from '../services/events';
@@ -37,14 +38,13 @@ const PODIUM_HEIGHTS: Record<number, number> = { 1: 80, 2: 60, 3: 48 };
 // Avatar sizes for each rank position
 const AVATAR_SIZES: Record<number, number> = { 1: 64, 2: 52, 3: 52 };
 
-function PodiumPillar({ clip, rank }: { clip: Clip; rank: 1 | 2 | 3 }) {
-  const downloads = clip.download_count;
-  const uploader = clip.uploader?.username ?? '—';
+function PodiumPillar({ entry, rank }: { entry: UserLeaderboardEntry; rank: 1 | 2 | 3 }) {
+  const views = entry.total_views;
+  const username = entry.username ?? '—';
   const avatarSize = AVATAR_SIZES[rank];
   const colHeight = PODIUM_HEIGHTS[rank];
-  const initials = (clip.artist ?? '?')
-    .split(' ')
-    .map((w: string) => w[0])
+  const initials = username
+    .split('')
     .slice(0, 2)
     .join('')
     .toUpperCase();
@@ -54,34 +54,44 @@ function PodiumPillar({ clip, rank }: { clip: Clip; rank: 1 | 2 | 3 }) {
       {/* Avatar + rank badge */}
       <View style={{ alignItems: 'center', marginBottom: 6 }}>
         {rank === 1 && <Text style={styles.crownEmoji}>👑</Text>}
-        <View style={[
-          styles.avatar,
-          { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
-          rank === 1 && styles.avatarFirst,
-        ]}>
-          <Text style={[styles.avatarText, { fontSize: rank === 1 ? 22 : 16 }]}>{initials}</Text>
-        </View>
+        {entry.avatar_url ? (
+          <View style={[
+            styles.avatar,
+            { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
+            rank === 1 && styles.avatarFirst,
+          ]}>
+            <Image source={{ uri: entry.avatar_url }} style={{ width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }} />
+          </View>
+        ) : (
+          <View style={[
+            styles.avatar,
+            { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
+            rank === 1 && styles.avatarFirst,
+          ]}>
+            <Text style={[styles.avatarText, { fontSize: rank === 1 ? 22 : 16 }]}>{initials}</Text>
+          </View>
+        )}
         {/* Rank badge */}
         <View style={[styles.rankBadge, { backgroundColor: PODIUM_COLORS[rank - 1] }]}>
           <Text style={styles.rankBadgeText}>{rank}</Text>
         </View>
       </View>
       {/* Username */}
-      <Text style={styles.pillarArtist} numberOfLines={1}>{clip.artist}</Text>
-      <Text style={styles.pillarDownloads}>{downloads.toLocaleString()}</Text>
-      <Text style={styles.pillarDownloadsLabel}>downloads</Text>
-      <Text style={styles.pillarUploader} numberOfLines={1}>@{uploader}</Text>
+      <Text style={styles.pillarArtist} numberOfLines={1}>@{username}</Text>
+      <Text style={styles.pillarDownloads}>{views.toLocaleString()}</Text>
+      <Text style={styles.pillarDownloadsLabel}>views</Text>
+      <Text style={styles.pillarUploader} numberOfLines={1}>{entry.total_uploads} uploads</Text>
       {/* The podium column */}
       <View style={[styles.podiumCol, { height: colHeight }]} />
     </View>
   );
 }
 
-function LeaderRow({ clip, rank }: { clip: Clip; rank: number }) {
+function LeaderRow({ entry, rank }: { entry: UserLeaderboardEntry; rank: number }) {
   const isHighRank = rank <= 3;
-  const downloads = clip.download_count;
-  const uploader = clip.uploader?.username ?? '—';
-  const isVerified = clip.uploader?.is_verified ?? false;
+  const views = entry.total_views;
+  const username = entry.username ?? '—';
+  const isVerified = entry.is_verified ?? false;
 
   return (
     <View style={[styles.row, isHighRank && styles.rowHighlighted]}>
@@ -89,15 +99,15 @@ function LeaderRow({ clip, rank }: { clip: Clip; rank: number }) {
         #{rank}
       </Text>
       <View style={styles.rowInfo}>
-        <Text style={styles.rowArtist} numberOfLines={1}>{clip.artist}</Text>
-        <Text style={styles.rowFestival} numberOfLines={1}>{clip.festival_name}</Text>
+        <Text style={styles.rowArtist} numberOfLines={1}>@{username}{isVerified ? ' ✓' : ''}</Text>
+        <Text style={styles.rowFestival} numberOfLines={1}>{entry.total_uploads} uploads</Text>
         <Text style={styles.rowUploader} numberOfLines={1}>
-          @{uploader}{isVerified ? ' ✓' : ''}
+          {entry.total_downloads.toLocaleString()} downloads
         </Text>
       </View>
       <View style={styles.rowStats}>
-        <Text style={styles.rowDownloads}>{downloads.toLocaleString()}</Text>
-        <Text style={styles.rowDownloadsLabel}>downloads</Text>
+        <Text style={styles.rowDownloads}>{views.toLocaleString()}</Text>
+        <Text style={styles.rowDownloadsLabel}>views</Text>
       </View>
     </View>
   );
@@ -122,7 +132,7 @@ export default function LeaderboardScreen() {
   const [period, setPeriod] = useState<Period>('all');
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [showEventPicker, setShowEventPicker] = useState(false);
-  const [clips, setClips] = useState<Clip[]>([]);
+  const [users, setUsers] = useState<UserLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -151,10 +161,8 @@ export default function LeaderboardScreen() {
 
   const load = useCallback(async (p: Period, event: string | null) => {
     try {
-      const data = event
-        ? await getLeaderboardByEvent(event, 20)
-        : await getLeaderboard(p);
-      setClips(data);
+      const data = await getUserLeaderboard(20);
+      setUsers(data);
     } catch {
       // silently fail — show empty
     } finally {
@@ -173,12 +181,12 @@ export default function LeaderboardScreen() {
     load(period, selectedEvent);
   };
 
-  const top3 = clips.slice(0, 3);
-  const rest = clips.slice(3);
+  const top3 = users.slice(0, 3);
+  const rest = users.slice(3);
 
   // Find current user's rank in the list
   const userRank = currentUsername
-    ? clips.findIndex((c) => c.uploader?.username === currentUsername) + 1
+    ? users.findIndex((u) => u.username === currentUsername) + 1
     : 0;
 
   const PERIODS: { key: Period; label: string }[] = [
@@ -281,7 +289,7 @@ export default function LeaderboardScreen() {
           <View style={styles.listSection}>
             {[0, 1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
           </View>
-        ) : clips.length === 0 ? (
+        ) : users.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyEmoji}>🎪</Text>
             <Text style={styles.emptyTitle}>No clips yet.</Text>
@@ -295,21 +303,21 @@ export default function LeaderboardScreen() {
             {top3.length >= 3 && (
               <View style={styles.podium}>
                 <View style={styles.podiumRow}>
-                  <PodiumPillar clip={top3[1]} rank={2} />
-                  <PodiumPillar clip={top3[0]} rank={1} />
-                  <PodiumPillar clip={top3[2]} rank={3} />
+                  <PodiumPillar entry={top3[1]} rank={2} />
+                  <PodiumPillar entry={top3[0]} rank={1} />
+                  <PodiumPillar entry={top3[2]} rank={3} />
                 </View>
               </View>
             )}
 
             {/* Rest of leaderboard */}
-            {(top3.length < 3 ? clips : rest).length > 0 && (
+            {(top3.length < 3 ? users : rest).length > 0 && (
               <View style={styles.listSection}>
                 <Text style={styles.listTitle}>Full Rankings</Text>
-                {(top3.length < 3 ? clips : rest).map((clip, i) => (
+                {(top3.length < 3 ? users : rest).map((entry, i) => (
                   <LeaderRow
-                    key={clip.id}
-                    clip={clip}
+                    key={entry.user_id}
+                    entry={entry}
                     rank={top3.length < 3 ? i + 1 : i + 4}
                   />
                 ))}

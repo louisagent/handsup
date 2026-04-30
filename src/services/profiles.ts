@@ -28,24 +28,51 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   return data;
 }
 
-// Pin a clip to the current user's profile
+// Pin a clip to the current user's profile (up to 3 pins)
 export async function pinClip(clipId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
+  
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('pinned_clip_ids, pinned_clip_id')
+    .eq('id', user.id)
+    .single();
+  
+  // Merge old single pin with new array (backward compatibility)
+  let existing: string[] = prof?.pinned_clip_ids ?? [];
+  if (prof?.pinned_clip_id && !existing.includes(prof.pinned_clip_id)) {
+    existing = [prof.pinned_clip_id, ...existing];
+  }
+  
+  if (existing.includes(clipId)) return; // Already pinned
+  if (existing.length >= 3) throw new Error('You can pin up to 3 clips');
+  
+  const updated = [...existing, clipId];
   const { error } = await supabase
     .from('profiles')
-    .update({ pinned_clip_id: clipId })
+    .update({ pinned_clip_ids: updated })
     .eq('id', user.id);
   if (error) throw error;
 }
 
-// Unpin the current user's pinned clip
-export async function unpinClip(): Promise<void> {
+// Unpin a specific clip from the current user's profile
+export async function unpinClip(clipId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
+  
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('pinned_clip_ids')
+    .eq('id', user.id)
+    .single();
+  
+  const existing: string[] = prof?.pinned_clip_ids ?? [];
+  const updated = existing.filter((id: string) => id !== clipId);
+  
   const { error } = await supabase
     .from('profiles')
-    .update({ pinned_clip_id: null })
+    .update({ pinned_clip_ids: updated })
     .eq('id', user.id);
   if (error) throw error;
 }

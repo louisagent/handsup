@@ -241,7 +241,7 @@ function getCreatorTagline(uploadCount: number): string {
 export default function ProfileScreen({ navigation }: any) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [clips, setClips] = useState<Clip[]>([]);
-  const [pinnedClipId, setPinnedClipId] = useState<string | null>(null);
+  const [pinnedClipIds, setPinnedClipIds] = useState<string[]>([]);
   const [followCounts, setFollowCounts] = useState({ followers: 0, following: 0 });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -265,8 +265,12 @@ export default function ProfileScreen({ navigation }: any) {
       setProfile(prof);
       setClips(uploads);
       setProfilePromptDismissed(dismissed === 'true');
-      // pinned_clip_id comes from the profile row in Supabase
-      setPinnedClipId(prof?.pinned_clip_id ?? null);
+      // Load pinned_clip_ids (fallback to old single pin for backward compat)
+      let pinnedIds: string[] = prof?.pinned_clip_ids ?? [];
+      if (prof?.pinned_clip_id && !pinnedIds.includes(prof.pinned_clip_id)) {
+        pinnedIds = [prof.pinned_clip_id, ...pinnedIds];
+      }
+      setPinnedClipIds(pinnedIds);
       if (prof) {
         const counts = await getFollowCounts(prof.id);
         setFollowCounts(counts);
@@ -321,9 +325,9 @@ export default function ProfileScreen({ navigation }: any) {
             try {
               await supabase.from('clips').delete().eq('id', clip.id);
               setClips((prev) => prev.filter((c) => c.id !== clip.id));
-              if (pinnedClipId === clip.id) {
-                await unpinClip();
-                setPinnedClipId(null);
+              if (pinnedClipIds.includes(clip.id)) {
+                await unpinClip(clip.id);
+                setPinnedClipIds((prev) => prev.filter((id) => id !== clip.id));
               }
             } catch (e: any) {
               Alert.alert('Error', e?.message ?? 'Could not delete clip.');
@@ -335,25 +339,30 @@ export default function ProfileScreen({ navigation }: any) {
   };
 
   const handleLongPressClip = (clip: Clip) => {
-    const isPinned = pinnedClipId === clip.id;
-    const pinLabel = isPinned ? '📌 Unpin from profile' : '📌 Pin to profile';
+    const isPinned = pinnedClipIds.includes(clip.id);
+    const canPin = pinnedClipIds.length < 3;
+    let pinLabel = '📌 Pin to profile';
+    if (isPinned) pinLabel = '📌 Unpin from profile';
+    else if (!canPin) pinLabel = '📌 Max 3 pins';
     const options = [pinLabel, '🗑 Delete clip', 'Cancel'];
 
     const runAction = async (idx: number) => {
       if (idx === 0) {
         // Pin / Unpin — update local state immediately for snappy UI, then persist
         if (isPinned) {
-          setPinnedClipId(null);
-          try { await unpinClip(); } catch (e: any) {
-            setPinnedClipId(clip.id); // rollback on error
+          setPinnedClipIds((prev) => prev.filter((id) => id !== clip.id));
+          try { await unpinClip(clip.id); } catch (e: any) {
+            setPinnedClipIds((prev) => [...prev, clip.id]); // rollback on error
             Alert.alert('Error', e?.message ?? 'Could not unpin clip.');
           }
-        } else {
-          setPinnedClipId(clip.id);
+        } else if (canPin) {
+          setPinnedClipIds((prev) => [...prev, clip.id]);
           try { await pinClip(clip.id); } catch (e: any) {
-            setPinnedClipId(null); // rollback on error
+            setPinnedClipIds((prev) => prev.filter((id) => id !== clip.id)); // rollback on error
             Alert.alert('Error', e?.message ?? 'Could not pin clip.');
           }
+        } else {
+          Alert.alert('Max Pins', 'You can pin up to 3 clips. Unpin one to add another.');
         }
       } else if (idx === 1) {
         handleDeleteClip(clip);
@@ -384,13 +393,23 @@ export default function ProfileScreen({ navigation }: any) {
     !profile.bio &&
     !profile.avatar_url;
 
-  // The pinned clip (if set and still in the list)
-  const pinnedClip = pinnedClipId ? clips.find((c) => c.id === pinnedClipId) ?? null : null;
+  // Pinned clips (up to 3)
+  const pinnedClips = pinnedClipIds
+    .map((id) => clips.find((c) => c.id === id))
+    .filter((c): c is Clip => !!c);
 
   // Best clip — highest download count
   const bestClip = clips.length > 0
     ? clips.reduce((best, c) => (c.download_count > best.download_count ? c : best), clips[0])
     : null;
+  
+  // Sorted clips for "My Clips" section: best clip → pinned clips → rest
+  const sortedClips = (() => {
+    const best = bestClip && bestClip.download_count > 0 ? bestClip : null;
+    const pinned = pinnedClips.filter((c) => c.id !== best?.id); // Don't duplicate best
+    const rest = clips.filter((c) => c.id !== best?.id && !pinnedClipIds.includes(c.id));
+    return [best, ...pinned, ...rest].filter((c): c is Clip => !!c);
+  })();
 
   if (loading) {
     return (
@@ -569,17 +588,20 @@ export default function ProfileScreen({ navigation }: any) {
       </View>
 
       {/* ── 📌 Pinned Section ── */}
-      {pinnedClip && (
+      {pinnedClips.length > 0 && (
         <View style={styles.section}>
           <View style={styles.pinnedSectionHeader}>
             <Text style={styles.pinnedSectionTitle}>📌 Pinned</Text>
           </View>
-          <ClipCard
-            clip={pinnedClip}
-            isPinned
-            onPress={() => navigation.navigate('VideoDetail', { video: pinnedClip })}
-            onLongPress={() => handleLongPressClip(pinnedClip)}
-          />
+          {pinnedClips.map((clip) => (
+            <ClipCard
+              key={clip.id}
+              clip={clip}
+              isPinned
+              onPress={() => navigation.navigate('VideoDetail', { video: clip })}
+              onLongPress={() => handleLongPressClip(clip)}
+            />
+          ))}
         </View>
       )}
 
@@ -623,11 +645,11 @@ export default function ProfileScreen({ navigation }: any) {
             <Text style={styles.emptyText}>Your first clip could be the most viewed. 👀</Text>
           </View>
         ) : (
-          clips.map((clip) => (
+          sortedClips.map((clip) => (
             <ClipCard
               key={clip.id}
               clip={clip}
-              isPinned={pinnedClipId === clip.id}
+              isPinned={pinnedClipIds.includes(clip.id)}
               onPress={() => navigation.navigate('VideoDetail', { video: clip })}
               onLongPress={() => handleLongPressClip(clip)}
             />
