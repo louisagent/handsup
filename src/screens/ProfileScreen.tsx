@@ -106,9 +106,17 @@ function ClipCard({
       activeOpacity={0.8}
       delayLongPress={400}
     >
-      {/* Thumbnail placeholder */}
+      {/* Thumbnail */}
       <View style={clipStyles.thumb}>
-        <Ionicons name="play-circle-outline" size={28} color="#8B5CF6" />
+        {clip.thumbnail_url ? (
+          <Image 
+            source={{ uri: clip.thumbnail_url }} 
+            style={{ width: '100%', height: '100%' }} 
+            resizeMode="cover"
+          />
+        ) : (
+          <Ionicons name="play-circle-outline" size={28} color="#8B5CF6" />
+        )}
         {isPinned && (
           <View style={clipStyles.pinnedBadge}>
             <Text style={clipStyles.pinnedBadgeText}>📌</Text>
@@ -540,23 +548,25 @@ export default function ProfileScreen({ navigation }: any) {
       })()}
 
       {/* ── Badges ── */}
-      {badges.length > 0 && (
-        <View style={styles.badgesSection}>
-          <Text style={styles.badgesTitle}>BADGES</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesRow}>
-            {badges.map((key) => {
-              const badge = BADGES[key];
-              if (!badge) return null;
-              return (
-                <View key={key} style={styles.badge}>
-                  <Text style={styles.badgeEmoji}>{badge.emoji}</Text>
-                  <Text style={styles.badgeLabel} numberOfLines={2}>{badge.label}</Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
+      {/* ── BADGES (All badges, locked/unlocked) ── */}
+      <View style={styles.badgesSection}>
+        <Text style={styles.badgesTitle}>BADGES</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesRow}>
+          {Object.entries(BADGES).map(([key, badge]) => {
+            const isEarned = badges.includes(key);
+            return (
+              <View key={key} style={[styles.badge, !isEarned && styles.badgeLocked]}>
+                <Text style={[styles.badgeEmoji, !isEarned && styles.badgeEmojiLocked]}>
+                  {isEarned ? badge.emoji : '🔒'}
+                </Text>
+                <Text style={[styles.badgeLabel, !isEarned && styles.badgeLabelLocked]} numberOfLines={2}>
+                  {badge.label}
+                </Text>
+              </View>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* ── 📌 Pinned Section ── */}
       {pinnedClip && (
@@ -988,12 +998,21 @@ const styles = StyleSheet.create({
     width: 80,
     gap: 6,
   },
+  badgeLocked: {
+    backgroundColor: '#0a0a0a',
+    borderColor: '#1a1a1a',
+    opacity: 0.5,
+  },
   badgeEmoji: { fontSize: 26 },
+  badgeEmojiLocked: { opacity: 0.4 },
   badgeLabel: {
     color: '#aaa',
     fontSize: 10,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  badgeLabelLocked: {
+    color: '#444',
     lineHeight: 13,
   },
 

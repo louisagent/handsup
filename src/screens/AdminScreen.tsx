@@ -13,11 +13,14 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { getPendingReports, resolveReport, deleteClip } from '../services/clips';
 import { isModerator, banUser, unbanUser, getBannedUsers } from '../services/moderator';
 import { supabase } from '../services/supabase';
+import { getAllArtists, Artist } from '../services/artists';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -59,7 +62,14 @@ interface VerifyApp {
   user?: { username: string; is_verified: boolean };
 }
 
-type Tab = 'reports' | 'banned' | 'verify';
+type Tab = 'reports' | 'banned' | 'verify' | 'content';
+
+interface FestivalImage {
+  id: string;
+  festival_name: string;
+  image_url: string;
+  created_at: string;
+}
 
 // ── Helpers ────────────────────────────────────────────────
 
@@ -229,6 +239,14 @@ export default function AdminScreen({ navigation }: any) {
   const [verifyLoading, setVerifyLoading] = useState(true);
   const [reviewingIds, setReviewingIds] = useState<Set<string>>(new Set());
 
+  // Content state
+  const [contentTab, setContentTab] = useState<'artists' | 'festivals'>('artists');
+  const [artists, setArtists] = useState<Artist[]>([]);
+  const [artistsLoading, setArtistsLoading] = useState(true);
+  const [festivals, setFestivals] = useState<{ name: string; image_url?: string }[]>([]);
+  const [festivalsLoading, setFestivalsLoading] = useState(true);
+  const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
+
   // ── Role check ─────────────────────────────────────────────
 
   useEffect(() => {
@@ -240,6 +258,8 @@ export default function AdminScreen({ navigation }: any) {
           loadReports();
           loadBannedUsers();
           loadVerificationApps();
+          loadArtists();
+          loadFestivals();
         }
       } catch {
         setHasAccess(false);
@@ -286,9 +306,133 @@ export default function AdminScreen({ navigation }: any) {
     finally { setVerifyLoading(false); }
   }, []);
 
+  const loadArtists = useCallback(async () => {
+    try {
+      const data = await getAllArtists();
+      setArtists(data);
+    } catch {}
+    finally { setArtistsLoading(false); }
+  }, []);
+
+  const loadFestivals = useCallback(async () => {
+    try {
+      const { data: clipData } = await supabase
+        .from('clips')
+        .select('festival_name')
+        .not('festival_name', 'is', null);
+      
+      const uniqueFestivals = Array.from(new Set(clipData?.map((c: any) => c.festival_name) ?? []));
+      
+      // Try to load existing festival images
+      const { data: festivalImages } = await supabase
+        .from('festival_images')
+        .select('festival_name, image_url');
+      
+      const imageMap = new Map(festivalImages?.map((f: any) => [f.festival_name, f.image_url]) ?? []);
+      
+      setFestivals(uniqueFestivals.map(name => ({
+        name,
+        image_url: imageMap.get(name),
+      })));
+    } catch {}
+    finally { setFestivalsLoading(false); }
+  }, []);
+
   const handleRefreshReports = () => {
     setReportsRefreshing(true);
     loadReports();
+  };
+
+  // ── Content actions ────────────────────────────────────────
+
+  const handleEditArtistPhoto = async (artist: Artist) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    setUploadingIds((prev) => new Set(prev).add(artist.id));
+    try {
+      const uri = result.assets[0].uri;
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const path = `${artist.id}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('artist-images')
+        .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('artist-images')
+        .getPublicUrl(path);
+
+      const publicUrl = urlData.publicUrl;
+
+      const { error: updateError } = await supabase
+        .from('artists')
+        .update({ image_url: publicUrl })
+        .eq('id', artist.id);
+
+      if (updateError) throw updateError;
+
+      setArtists((prev) => prev.map((a) => a.id === artist.id ? { ...a, image_url: publicUrl } : a));
+      Alert.alert('Success', `Updated photo for ${artist.name}`);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to upload photo');
+    } finally {
+      setUploadingIds((prev) => { const next = new Set(prev); next.delete(artist.id); return next; });
+    }
+  };
+
+  const handleEditFestivalPhoto = async (festivalName: string) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    setUploadingIds((prev) => new Set(prev).add(festivalName));
+    try {
+      const uri = result.assets[0].uri;
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const slug = festivalName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const path = `${slug}.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('festival-images')
+        .upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('festival-images')
+        .getPublicUrl(path);
+
+      const publicUrl = urlData.publicUrl;
+
+      const { error: upsertError } = await supabase
+        .from('festival_images')
+        .upsert({ festival_name: festivalName, image_url: publicUrl });
+
+      if (upsertError) throw upsertError;
+
+      setFestivals((prev) => prev.map((f) => f.name === festivalName ? { ...f, image_url: publicUrl } : f));
+      Alert.alert('Success', `Updated photo for ${festivalName}`);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to upload photo');
+    } finally {
+      setUploadingIds((prev) => { const next = new Set(prev); next.delete(festivalName); return next; });
+    }
   };
 
   // ── Report actions ─────────────────────────────────────────
@@ -543,6 +687,20 @@ export default function AdminScreen({ navigation }: any) {
             Verify{verifyApps.length > 0 ? ` (${verifyApps.length})` : ''}
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'content' && styles.tabActiveContent]}
+          onPress={() => setActiveTab('content')}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="image-outline"
+            size={16}
+            color={activeTab === 'content' ? '#10B981' : '#555'}
+          />
+          <Text style={[styles.tabLabel, activeTab === 'content' && styles.tabLabelActiveContent]}>
+            Content
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Reports Tab */}
@@ -687,6 +845,138 @@ export default function AdminScreen({ navigation }: any) {
             }
           />
         )
+      )}
+
+      {/* Content Tab */}
+      {activeTab === 'content' && (
+        <View style={styles.contentContainer}>
+          {/* Sub-tabs */}
+          <View style={styles.contentTabBar}>
+            <TouchableOpacity
+              style={[styles.contentTab, contentTab === 'artists' && styles.contentTabActive]}
+              onPress={() => setContentTab('artists')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.contentTabLabel, contentTab === 'artists' && styles.contentTabLabelActive]}>
+                Artists ({artists.length})
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.contentTab, contentTab === 'festivals' && styles.contentTabActive]}
+              onPress={() => setContentTab('festivals')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.contentTabLabel, contentTab === 'festivals' && styles.contentTabLabelActive]}>
+                Festivals ({festivals.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Artists list */}
+          {contentTab === 'artists' && (
+            artistsLoading ? (
+              <View style={styles.centered}>
+                <ActivityIndicator size="large" color="#8B5CF6" />
+              </View>
+            ) : (
+              <FlatList
+                data={artists}
+                keyExtractor={(a) => a.id}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyEmoji}>🎤</Text>
+                    <Text style={styles.emptyTitle}>No artists yet</Text>
+                  </View>
+                }
+                renderItem={({ item }) => (
+                  <View style={styles.contentCard}>
+                    <View style={styles.contentImageBox}>
+                      {item.image_url ? (
+                        <Image source={{ uri: item.image_url }} style={styles.contentImage} />
+                      ) : (
+                        <Ionicons name="person-outline" size={28} color="#555" />
+                      )}
+                    </View>
+                    <View style={styles.contentInfo}>
+                      <Text style={styles.contentName} numberOfLines={1}>{item.name}</Text>
+                      {item.genre_tags && item.genre_tags.length > 0 && (
+                        <Text style={styles.contentGenre} numberOfLines={1}>
+                          {item.genre_tags.join(', ')}
+                        </Text>
+                      )}
+                    </View>
+                    {uploadingIds.has(item.id) ? (
+                      <ActivityIndicator size="small" color="#10B981" />
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.editPhotoBtn}
+                        onPress={() => handleEditArtistPhoto(item)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="camera-outline" size={16} color="#10B981" />
+                        <Text style={styles.editPhotoBtnText}>Edit Photo</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+                contentContainerStyle={
+                  artists.length === 0 ? styles.emptyContainer : styles.listContent
+                }
+              />
+            )
+          )}
+
+          {/* Festivals list */}
+          {contentTab === 'festivals' && (
+            festivalsLoading ? (
+              <View style={styles.centered}>
+                <ActivityIndicator size="large" color="#8B5CF6" />
+              </View>
+            ) : (
+              <FlatList
+                data={festivals}
+                keyExtractor={(f) => f.name}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyEmoji}>🎪</Text>
+                    <Text style={styles.emptyTitle}>No festivals yet</Text>
+                  </View>
+                }
+                renderItem={({ item }) => (
+                  <View style={styles.contentCard}>
+                    <View style={styles.contentImageBox}>
+                      {item.image_url ? (
+                        <Image source={{ uri: item.image_url }} style={styles.contentImage} />
+                      ) : (
+                        <Ionicons name="calendar-outline" size={28} color="#555" />
+                      )}
+                    </View>
+                    <View style={styles.contentInfo}>
+                      <Text style={styles.contentName} numberOfLines={1}>{item.name}</Text>
+                    </View>
+                    {uploadingIds.has(item.name) ? (
+                      <ActivityIndicator size="small" color="#10B981" />
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.editPhotoBtn}
+                        onPress={() => handleEditFestivalPhoto(item.name)}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="camera-outline" size={16} color="#10B981" />
+                        <Text style={styles.editPhotoBtnText}>Edit Photo</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+                contentContainerStyle={
+                  festivals.length === 0 ? styles.emptyContainer : styles.listContent
+                }
+              />
+            )
+          )}
+        </View>
       )}
     </View>
   );
@@ -919,4 +1209,93 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 48 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: '#555' },
   emptySubtitle: { fontSize: 14, color: '#333' },
+
+  // Content tab
+  tabActiveContent: {
+    borderBottomColor: '#10B981',
+  },
+  tabLabelActiveContent: {
+    color: '#10B981',
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  contentTabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a1a1a',
+    backgroundColor: '#0a0a0a',
+  },
+  contentTab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  contentTabActive: {
+    borderBottomColor: '#10B981',
+  },
+  contentTabLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
+  },
+  contentTabLabelActive: {
+    color: '#10B981',
+  },
+  contentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1e1e1e',
+    padding: 12,
+    gap: 12,
+  },
+  contentImageBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: '#1a1228',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  contentImage: {
+    width: '100%',
+    height: '100%',
+  },
+  contentInfo: {
+    flex: 1,
+  },
+  contentName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  contentGenre: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    marginTop: 2,
+  },
+  editPhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#0a1a12',
+    borderWidth: 1,
+    borderColor: '#10B98144',
+  },
+  editPhotoBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#10B981',
+  },
 });

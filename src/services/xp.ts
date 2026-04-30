@@ -19,19 +19,50 @@ export type XPAction = keyof typeof XP_VALUES;
 
 // All possible badges
 export const BADGES: Record<string, { label: string; emoji: string; description: string }> = {
-  first_upload:      { label: 'First Upload',     emoji: '🎬', description: 'Uploaded your first clip' },
-  ten_uploads:       { label: 'Clip Maker',        emoji: '📹', description: 'Uploaded 10 clips' },
-  fifty_uploads:     { label: 'Festival Regular',  emoji: '🎪', description: 'Uploaded 50 clips' },
-  hundred_uploads:   { label: 'Century Club',      emoji: '💯', description: 'Uploaded 100 clips' },
-  first_download:    { label: 'Downloaded',        emoji: '⬇️', description: 'Got your first download' },
-  hundred_downloads: { label: 'Popular',           emoji: '🔥', description: '100 people downloaded your clips' },
-  thousand_downloads:{ label: 'Viral',             emoji: '🚀', description: '1,000 downloads across your clips' },
-  first_follower:    { label: 'Social',            emoji: '👥', description: 'Got your first follower' },
-  fifty_followers:   { label: 'Influencer',        emoji: '⭐', description: 'Reached 50 followers' },
-  first_like:        { label: 'Liked',             emoji: '❤️', description: 'Got your first like' },
-  level_5:           { label: 'Rising Star',       emoji: '🌟', description: 'Reached Level 5' },
-  level_10:          { label: 'Legend',            emoji: '👑', description: 'Reached Level 10' },
-  multi_festival:    { label: 'Festival Hopper',   emoji: '🎡', description: 'Uploaded from 3+ different festivals' },
+  // Uploads
+  first_upload:        { label: 'First Upload',      emoji: '🎬', description: 'Uploaded your first clip' },
+  ten_uploads:         { label: 'Clip Maker',         emoji: '📹', description: 'Uploaded 10 clips' },
+  twenty_five_uploads: { label: 'Content Creator',   emoji: '🎥', description: 'Uploaded 25 clips' },
+  fifty_uploads:       { label: 'Festival Regular',  emoji: '🎪', description: 'Uploaded 50 clips' },
+  hundred_uploads:     { label: 'Century Club',       emoji: '💯', description: 'Uploaded 100 clips' },
+  
+  // Downloads
+  first_download:         { label: 'First Download',  emoji: '⬇️', description: 'Got your first download' },
+  ten_downloads:          { label: 'Getting Noticed', emoji: '👀', description: '10 people downloaded your clips' },
+  fifty_downloads:        { label: 'Rising',          emoji: '📈', description: '50 downloads across your clips' },
+  hundred_downloads:      { label: 'Popular',         emoji: '🔥', description: '100 people downloaded your clips' },
+  five_hundred_downloads: { label: 'On Fire',         emoji: '🔥🔥', description: '500 downloads' },
+  thousand_downloads:     { label: 'Viral',           emoji: '🚀', description: '1,000 downloads across your clips' },
+  five_thousand_downloads:{ label: 'Legendary',       emoji: '👑', description: '5,000 downloads' },
+  
+  // Followers
+  first_follower:     { label: 'Social',        emoji: '👥', description: 'Got your first follower' },
+  ten_followers:      { label: 'Growing',       emoji: '🌱', description: 'Reached 10 followers' },
+  fifty_followers:    { label: 'Influencer',    emoji: '⭐', description: 'Reached 50 followers' },
+  hundred_followers:  { label: 'Popular',       emoji: '🌟', description: 'Reached 100 followers' },
+  
+  // Likes
+  first_like:         { label: 'Liked',         emoji: '❤️', description: 'Got your first like' },
+  fifty_likes:        { label: 'Fan Favourite',  emoji: '💜', description: 'Got 50 likes on your clips' },
+  hundred_likes:      { label: 'Crowd Pleaser', emoji: '🎉', description: 'Got 100 likes on your clips' },
+  
+  // Levels
+  level_3:            { label: 'Getting Started', emoji: '🎯', description: 'Reached Level 3' },
+  level_5:            { label: 'Rising Star',   emoji: '🌟', description: 'Reached Level 5' },
+  level_10:           { label: 'Legend',        emoji: '👑', description: 'Reached Level 10' },
+  
+  // Festivals
+  multi_festival:     { label: 'Festival Hopper',   emoji: '🎡', description: 'Uploaded from 3+ different festivals' },
+  five_festivals:     { label: 'Festival Pro',      emoji: '🎠', description: 'Uploaded from 5+ different festivals' },
+  ten_festivals:      { label: 'Festival Legend',   emoji: '🏆', description: 'Uploaded from 10+ different festivals' },
+  
+  // Streaks & engagement
+  streak_7:           { label: '7-Day Streak',    emoji: '🔥', description: 'Logged in 7 days in a row' },
+  streak_30:          { label: '30-Day Streak',   emoji: '⚡', description: 'Logged in 30 days in a row' },
+  early_adopter:      { label: 'Early Adopter',   emoji: '🛸', description: 'Joined in the first wave' },
+  verified_artist:    { label: 'Verified Artist', emoji: '✅', description: 'Verified as an artist' },
+  first_comment:      { label: 'Commenter',       emoji: '💬', description: 'Left your first comment' },
+  first_follow:       { label: 'Connected',       emoji: '🤝', description: 'Followed your first creator' },
 };
 
 // Award XP to current user
@@ -73,8 +104,9 @@ export async function getUserBadges(userId: string): Promise<string[]> {
 
 // Check and award upload-related badges
 export async function checkUploadBadges(userId: string, totalUploads: number): Promise<void> {
-  if (totalUploads === 1) await awardBadge(userId, 'first_upload');
+  if (totalUploads >= 1) await awardBadge(userId, 'first_upload');
   if (totalUploads >= 10) await awardBadge(userId, 'ten_uploads');
+  if (totalUploads >= 25) await awardBadge(userId, 'twenty_five_uploads');
   if (totalUploads >= 50) await awardBadge(userId, 'fifty_uploads');
   if (totalUploads >= 100) await awardBadge(userId, 'hundred_uploads');
 }
@@ -82,18 +114,25 @@ export async function checkUploadBadges(userId: string, totalUploads: number): P
 // Check and award download milestone badges
 export async function checkDownloadBadges(userId: string, totalDownloads: number): Promise<void> {
   if (totalDownloads >= 1) await awardBadge(userId, 'first_download');
+  if (totalDownloads >= 10) await awardBadge(userId, 'ten_downloads');
+  if (totalDownloads >= 50) await awardBadge(userId, 'fifty_downloads');
   if (totalDownloads >= 100) await awardBadge(userId, 'hundred_downloads');
+  if (totalDownloads >= 500) await awardBadge(userId, 'five_hundred_downloads');
   if (totalDownloads >= 1000) await awardBadge(userId, 'thousand_downloads');
+  if (totalDownloads >= 5000) await awardBadge(userId, 'five_thousand_downloads');
 }
 
 // Check and award follower badges
 export async function checkFollowerBadges(userId: string, followerCount: number): Promise<void> {
   if (followerCount >= 1) await awardBadge(userId, 'first_follower');
+  if (followerCount >= 10) await awardBadge(userId, 'ten_followers');
   if (followerCount >= 50) await awardBadge(userId, 'fifty_followers');
+  if (followerCount >= 100) await awardBadge(userId, 'hundred_followers');
 }
 
 // Check level badges
 export async function checkLevelBadges(userId: string, level: number): Promise<void> {
+  if (level >= 3) await awardBadge(userId, 'level_3');
   if (level >= 5) await awardBadge(userId, 'level_5');
   if (level >= 10) await awardBadge(userId, 'level_10');
 }

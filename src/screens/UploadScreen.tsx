@@ -31,6 +31,7 @@ import { supabase } from '../services/supabase';
 import { uploadClip } from '../services/clips';
 import { trackEvent } from '../services/analytics';
 import { notifyFollowersOfNewClip } from '../services/notifications';
+import { createArtistIfNotExists } from '../services/artists';
 import { splitByHashtags } from '../utils/tags';
 import { detectTrackForClip } from '../services/acrcloud';
 
@@ -441,6 +442,11 @@ export default function UploadScreen({ route }: any) {
       setSubmittedFestival(festival);
       setSubmittedClipId(uploadedClip?.id ?? null);
       trackEvent('clip_upload', { artist, festival }).catch(() => {});
+
+      // Auto-create artist profile if it doesn't exist (fire and forget)
+      if (artist) {
+        createArtistIfNotExists(artist).catch(() => {});
+      }
 
       // Save last event to AsyncStorage for pre-fill on next upload
       AsyncStorage.setItem(LAST_EVENT_KEY, JSON.stringify({

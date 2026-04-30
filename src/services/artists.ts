@@ -81,3 +81,18 @@ export async function createArtist(params: {
   if (error) throw error;
   return data;
 }
+
+export async function createArtistIfNotExists(name: string): Promise<void> {
+  const slug = generateSlug(name);
+  const { data: existing } = await supabase
+    .from('artists')
+    .select('id')
+    .eq('slug', slug)
+    .maybeSingle();
+  
+  if (existing) return; // Already exists
+  
+  await supabase
+    .from('artists')
+    .insert({ name, slug, bio: null, genre_tags: [], image_url: null, is_verified: false });
+}

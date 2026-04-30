@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Clip, Profile, Event } from '../types';
 import { searchClips, getTrendingArtists } from '../services/clips';
 import { searchProfiles, getSuggestedUsers } from '../services/profiles';
+import { searchArtists, Artist } from '../services/artists';
 import { isFollowing, followUser, unfollowUser } from '../services/follows';
 import { SkeletonSearchRow } from '../components/SkeletonCard';
 import { trackEvent } from '../services/analytics';
@@ -299,6 +300,7 @@ export default function SearchScreen({ navigation, route }: any) {
   const [query, setQuery] = useState(route?.params?.initialQuery ?? '');
   const [results, setResults] = useState<Clip[]>([]);
   const [userResults, setUserResults] = useState<Profile[]>([]);
+  const [artistResults, setArtistResults] = useState<Artist[]>([]);
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState<Category>('All');
@@ -383,14 +385,29 @@ export default function SearchScreen({ navigation, route }: any) {
             const users = await searchProfiles(text.trim());
             setUserResults(users);
             setResults([]);
+            setArtistResults([]);
+          } else if (cat === 'Artists') {
+            // Search artist profiles first
+            const artists = await searchArtists(text.trim());
+            setArtistResults(artists);
+            // If no artist profiles found, fall back to clips grouped by artist
+            if (artists.length === 0) {
+              const data = await searchClips(buildSearchParams(text, cat));
+              setResults(data);
+            } else {
+              setResults([]);
+            }
+            setUserResults([]);
           } else {
             const data = await searchClips(buildSearchParams(text, cat));
             setResults(data);
             setUserResults([]);
+            setArtistResults([]);
           }
         } catch (e: any) {
           setResults([]);
           setUserResults([]);
+          setArtistResults([]);
           setError(e?.message ?? 'Search failed');
         } finally {
           setLoading(false);
@@ -538,8 +555,8 @@ export default function SearchScreen({ navigation, route }: any) {
   }, [navigation]);
 
   const isSearching = query.trim().length >= 2;
-  const filteredResults = category !== 'Users' ? filterByDuration(results) : results;
-  const totalResults = category === 'Users' ? userResults.length : filteredResults.length;
+  const filteredResults = category !== 'Users' && category !== 'Artists' ? filterByDuration(results) : results;
+  const totalResults = category === 'Users' ? userResults.length : category === 'Artists' ? artistResults.length : filteredResults.length;
 
   // Partner festival names for badge display in search results
   const partnerFestivalNames = React.useMemo(
@@ -840,6 +857,41 @@ export default function SearchScreen({ navigation, route }: any) {
         </View>
       )}
 
+      {/* Artist results */}
+      {!loading && category === 'Artists' && artistResults.length > 0 && (
+        <FlatList
+          data={artistResults}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.artistCard}
+              onPress={() => navigation.navigate('ArtistScreen', { artist: item.name })}
+              activeOpacity={0.85}
+            >
+              <View style={styles.artistImage}>
+                {item.image_url ? (
+                  <Image source={{ uri: item.image_url }} style={styles.artistImageImg} />
+                ) : (
+                  <Ionicons name="person-outline" size={32} color="#8B5CF6" />
+                )}
+              </View>
+              <View style={styles.artistInfo}>
+                <Text style={styles.artistName} numberOfLines={1}>{item.name}</Text>
+                {item.genre_tags && item.genre_tags.length > 0 && (
+                  <Text style={styles.artistGenre} numberOfLines={1}>
+                    {item.genre_tags.join(', ')}
+                  </Text>
+                )}
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#555" />
+            </TouchableOpacity>
+          )}
+          contentContainerStyle={styles.list}
+          keyboardDismissMode="on-drag"
+        />
+      )}
+
+      {/* User results */}
       {!loading && category === 'Users' && userResults.length > 0 && (
         <FlatList
           data={userResults}
@@ -855,7 +907,7 @@ export default function SearchScreen({ navigation, route }: any) {
         />
       )}
 
-      {!loading && category !== 'Users' && filteredResults.length > 0 && (
+      {!loading && category !== 'Users' && category !== 'Artists' && filteredResults.length > 0 && (
         <FlatList
           data={filteredResults}
           keyExtractor={(item) => item.id}
@@ -1070,6 +1122,33 @@ const styles = StyleSheet.create({
     borderBottomColor: '#111',
   },
   recentQuery: { flex: 1, color: '#ccc', fontSize: 14 },
+  // Artist cards
+  artistCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#161616',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#222',
+    padding: 12,
+    marginBottom: 10,
+    gap: 12,
+  },
+  artistImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1a1a2e',
+    borderWidth: 1,
+    borderColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  artistImageImg: { width: '100%', height: '100%' },
+  artistInfo: { flex: 1 },
+  artistName: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  artistGenre: { fontSize: 12, color: '#8B5CF6', marginTop: 2 },
 });
 
 const festivalStyles = StyleSheet.create({
