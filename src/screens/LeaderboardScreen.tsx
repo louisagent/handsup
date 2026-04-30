@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { getLeaderboard, getLeaderboardByEvent, getUserLeaderboard, UserLeaderboardEntry } from '../services/clips';
 import { Clip } from '../types';
 import { supabase } from '../services/supabase';
