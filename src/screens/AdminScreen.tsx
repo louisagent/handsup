@@ -14,6 +14,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
+  TextInput,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -240,12 +242,17 @@ export default function AdminScreen({ navigation }: any) {
   const [reviewingIds, setReviewingIds] = useState<Set<string>>(new Set());
 
   // Content state
-  const [contentTab, setContentTab] = useState<'artists' | 'festivals'>('artists');
+  const [contentTab, setContentTab] = useState<'artists' | 'festivals' | 'locations'>('artists');
   const [artists, setArtists] = useState<Artist[]>([]);
   const [artistsLoading, setArtistsLoading] = useState(true);
   const [festivals, setFestivals] = useState<{ name: string; image_url?: string }[]>([]);
   const [festivalsLoading, setFestivalsLoading] = useState(true);
+  const [locations, setLocations] = useState<{ location: string; count: number }[]>([]);
+  const [locationsLoading, setLocationsLoading] = useState(true);
   const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
+  const [selectedLocation, setSelectedLocation] = useState<{ location: string; count: number } | null>(null);
+  const [mergeTarget, setMergeTarget] = useState('');
+  const [renameValue, setRenameValue] = useState('');
 
   // ── Role check ─────────────────────────────────────────────
 
@@ -260,6 +267,7 @@ export default function AdminScreen({ navigation }: any) {
           loadVerificationApps();
           loadArtists();
           loadFestivals();
+          loadLocations();
         }
       } catch {
         setHasAccess(false);
@@ -432,6 +440,94 @@ export default function AdminScreen({ navigation }: any) {
       Alert.alert('Error', e?.message ?? 'Failed to upload photo');
     } finally {
       setUploadingIds((prev) => { const next = new Set(prev); next.delete(festivalName); return next; });
+    }
+  };
+
+  // ── Location actions ──────────────────────────
+
+  const loadLocations = useCallback(async () => {
+    try {
+      const { data } = await supabase
+        .from('clips')
+        .select('location')
+        .not('location', 'is', null);
+      
+      if (data) {
+        const locationCounts = new Map<string, number>();
+        data.forEach((row: { location: string }) => {
+          const loc = row.location;
+          locationCounts.set(loc, (locationCounts.get(loc) || 0) + 1);
+        });
+        const sorted = Array.from(locationCounts.entries())
+          .map(([location, count]) => ({ location, count }))
+          .sort((a, b) => b.count - a.count);
+        setLocations(sorted);
+      }
+    } catch {}
+    finally { setLocationsLoading(false); }
+  }, []);
+
+  const handleLocationAction = (location: { location: string; count: number }) => {
+    setSelectedLocation(location);
+    setRenameValue(location.location);
+    setMergeTarget('');
+  };
+
+  const handleMergeLocation = async () => {
+    if (!selectedLocation || !mergeTarget.trim()) {
+      Alert.alert('Error', 'Please enter a target location');
+      return;
+    }
+
+    Alert.alert(
+      'Merge Locations',
+      `Merge "${selectedLocation.location}" into "${mergeTarget}"? This will update ${selectedLocation.count} clip(s).`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Merge',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase
+                .from('clips')
+                .update({ location: mergeTarget })
+                .eq('location', selectedLocation.location);
+              
+              setSelectedLocation(null);
+              loadLocations();
+              Alert.alert('Success', `Merged ${selectedLocation.count} clips into "${mergeTarget}"`);
+            } catch (e: any) {
+              Alert.alert('Error', e?.message ?? 'Failed to merge locations');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRenameLocation = async () => {
+    if (!selectedLocation || !renameValue.trim()) {
+      Alert.alert('Error', 'Please enter a new location name');
+      return;
+    }
+
+    if (renameValue === selectedLocation.location) {
+      setSelectedLocation(null);
+      return;
+    }
+
+    try {
+      await supabase
+        .from('clips')
+        .update({ location: renameValue })
+        .eq('location', selectedLocation.location);
+      
+      setSelectedLocation(null);
+      loadLocations();
+      Alert.alert('Success', `Renamed to "${renameValue}"`);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to rename location');
     }
   };
 
@@ -870,6 +966,15 @@ export default function AdminScreen({ navigation }: any) {
                 Festivals ({festivals.length})
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.contentTab, contentTab === 'locations' && styles.contentTabActive]}
+              onPress={() => setContentTab('locations')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.contentTabLabel, contentTab === 'locations' && styles.contentTabLabelActive]}>
+                Locations ({locations.length})
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Artists list */}
@@ -976,8 +1081,108 @@ export default function AdminScreen({ navigation }: any) {
               />
             )
           )}
+
+          {/* Locations list */}
+          {contentTab === 'locations' && (
+            locationsLoading ? (
+              <View style={styles.centered}>
+                <ActivityIndicator size="large" color="#8B5CF6" />
+              </View>
+            ) : (
+              <FlatList
+                data={locations}
+                keyExtractor={(l) => l.location}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.emptyState}>
+                    <Ionicons name="location-outline" size={48} color="#333" />
+                    <Text style={styles.emptyTitle}>No locations yet</Text>
+                  </View>
+                }
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.contentCard}
+                    onPress={() => handleLocationAction(item)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.contentImageBox}>
+                      <Ionicons name="location" size={28} color="#10B981" />
+                    </View>
+                    <View style={styles.contentInfo}>
+                      <Text style={styles.contentName} numberOfLines={1}>{item.location}</Text>
+                      <Text style={styles.contentGenre} numberOfLines={1}>{item.count} clip{item.count !== 1 ? 's' : ''}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#555" />
+                  </TouchableOpacity>
+                )}
+                contentContainerStyle={
+                  locations.length === 0 ? styles.emptyContainer : styles.listContent
+                }
+              />
+            )
+          )}
         </View>
       )}
+
+      {/* Location Edit Modal */}
+      <Modal
+        visible={!!selectedLocation}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedLocation(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Location</Text>
+              <TouchableOpacity onPress={() => setSelectedLocation(null)} style={styles.modalClose}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>Current: {selectedLocation?.location}</Text>
+            <Text style={styles.modalSubLabel}>{selectedLocation?.count} clip(s) affected</Text>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Rename</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={renameValue}
+                onChangeText={setRenameValue}
+                placeholder="New location name"
+                placeholderTextColor="#666"
+              />
+              <TouchableOpacity
+                style={styles.modalBtn}
+                onPress={handleRenameLocation}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnText}>Rename</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalDivider} />
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Merge into another location</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={mergeTarget}
+                onChangeText={setMergeTarget}
+                placeholder="Target location name"
+                placeholderTextColor="#666"
+              />
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnDestructive]}
+                onPress={handleMergeLocation}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnText}>Merge</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1297,5 +1502,88 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: '#10B981',
+  },
+
+  // Location Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#161616',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  modalClose: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  modalSubLabel: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 24,
+  },
+  modalSection: {
+    marginBottom: 20,
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#8B5CF6',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  modalInput: {
+    backgroundColor: '#0a0a0a',
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: '#fff',
+    fontSize: 15,
+    marginBottom: 12,
+  },
+  modalBtn: {
+    backgroundColor: '#8B5CF6',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalBtnDestructive: {
+    backgroundColor: '#EF4444',
+  },
+  modalBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalDivider: {
+    height: 1,
+    backgroundColor: '#2a2a2a',
+    marginVertical: 20,
   },
 });
