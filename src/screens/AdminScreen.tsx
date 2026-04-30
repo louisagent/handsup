@@ -326,12 +326,24 @@ export default function AdminScreen({ navigation }: any) {
 
   const loadFestivals = useCallback(async () => {
     try {
+      // Load festivals from clips (past events with content)
       const { data: clipData } = await supabase
         .from('clips')
         .select('festival_name')
         .not('festival_name', 'is', null);
       
-      const uniqueFestivals = Array.from(new Set(clipData?.map((c: any) => c.festival_name) ?? []));
+      const clipFestivals = new Set(clipData?.map((c: any) => c.festival_name) ?? []);
+
+      // Load festivals from events table (includes upcoming)
+      const { data: eventsData } = await supabase
+        .from('events')
+        .select('name')
+        .not('name', 'is', null);
+      
+      const eventNames = eventsData?.map((e: any) => e.name) ?? [];
+      
+      // Combine both sources
+      const allFestivals = Array.from(new Set([...clipFestivals, ...eventNames]));
       
       // Try to load existing festival images
       const { data: festivalImages } = await supabase
@@ -340,7 +352,7 @@ export default function AdminScreen({ navigation }: any) {
       
       const imageMap = new Map(festivalImages?.map((f: any) => [f.festival_name, f.image_url]) ?? []);
       
-      setFestivals(uniqueFestivals.map(name => ({
+      setFestivals(allFestivals.sort().map(name => ({
         name,
         image_url: imageMap.get(name),
       })));
