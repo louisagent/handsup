@@ -14,10 +14,13 @@ import {
   RefreshControl,
   ActivityIndicator,
   Image,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
-import { getConversations, Conversation } from '../services/messages';
+import { getConversations, Conversation, getOrCreateConversation } from '../services/messages';
+import { supabase } from '../services/supabase';
 
 type RootStackParamList = {
   Conversation: {
@@ -52,6 +55,11 @@ export default function InboxScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeQuery, setComposeQuery] = useState('');
+  const [composeResults, setComposeResults] = useState<Array<{ id: string; username: string; avatar_url: string | null }>>([]);
+  const [composing, setComposing] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const loadConversations = async () => {
     try {
@@ -64,9 +72,56 @@ export default function InboxScreen() {
     }
   };
 
+  const searchUsers = async (query: string) => {
+    if (query.trim().length < 2 || !currentUserId) {
+      setComposeResults([]);
+      return;
+    }
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .ilike('username', `%${query}%`)
+        .neq('id', currentUserId)
+        .limit(10);
+      setComposeResults(data ?? []);
+    } catch (error) {
+      console.error('User search failed:', error);
+      setComposeResults([]);
+    }
+  };
+
+  const handleSelectUser = async (userId: string, username: string, avatarUrl: string | null) => {
+    setComposing(true);
+    try {
+      const conversationId = await getOrCreateConversation(userId);
+      setShowCompose(false);
+      setComposeQuery('');
+      setComposeResults([]);
+      navigation.navigate('Conversation', {
+        conversationId,
+        otherUser: { id: userId, username, avatar_url: avatarUrl },
+      });
+    } catch (error) {
+      console.error('Failed to create conversation:', error);
+    } finally {
+      setComposing(false);
+    }
+  };
+
   useEffect(() => {
     loadConversations();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUserId(user?.id ?? null);
+    });
   }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchUsers(composeQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [composeQuery, currentUserId]);
 
   // Refresh when screen comes into focus
   useFocusEffect(
@@ -150,8 +205,79 @@ export default function InboxScreen() {
           <Ionicons name="chevron-back" size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Messages</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity onPress={() => setShowCompose(true)} style={styles.composeButton}>
+          <Ionicons name="create-outline" size={24} color="#8B5CF6" />
+        </TouchableOpacity>
       </View>
+
+      {/* Compose Modal */}
+      <Modal
+        visible={showCompose}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowCompose(false)}
+      >
+        <SafeAreaView style={styles.composeContainer}>
+          {/* Compose Header */}
+          <View style={styles.composeHeader}>
+            <Text style={styles.composeTitle}>New Message</Text>
+            <TouchableOpacity onPress={() => { setShowCompose(false); setComposeQuery(''); setComposeResults([]); }} style={styles.composeClose}>
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Search Input */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search people..."
+              placeholderTextColor="#666"
+              value={composeQuery}
+              onChangeText={setComposeQuery}
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          {/* Results List */}
+          {composing ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#8B5CF6" />
+            </View>
+          ) : composeResults.length > 0 ? (
+            <FlatList
+              data={composeResults}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.searchResultItem}
+                  onPress={() => handleSelectUser(item.id, item.username, item.avatar_url)}
+                  activeOpacity={0.7}
+                >
+                  {item.avatar_url ? (
+                    <Image source={{ uri: item.avatar_url }} style={styles.resultAvatar} />
+                  ) : (
+                    <View style={[styles.resultAvatar, styles.resultAvatarPlaceholder]}>
+                      <Text style={styles.resultAvatarInitials}>{getInitials(item.username)}</Text>
+                    </View>
+                  )}
+                  <Text style={styles.resultUsername}>{item.username}</Text>
+                </TouchableOpacity>
+              )}
+            />
+          ) : composeQuery.trim().length >= 2 ? (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>No users found</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptySubtext}>Type at least 2 characters to search</Text>
+            </View>
+          )}
+        </SafeAreaView>
+      </Modal>
 
       {/* Conversations List */}
       {loading ? (
@@ -200,8 +326,79 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
   },
-  headerSpacer: {
-    width: 40,
+  composeButton: {
+    padding: 8,
+  },
+  composeContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  composeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#222',
+  },
+  composeTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  composeClose: {
+    padding: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#fff',
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a1a1a',
+  },
+  resultAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 12,
+  },
+  resultAvatarPlaceholder: {
+    backgroundColor: '#333',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  resultAvatarInitials: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  resultUsername: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
   loadingContainer: {
     flex: 1,

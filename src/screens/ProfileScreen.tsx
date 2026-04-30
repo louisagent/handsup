@@ -131,8 +131,14 @@ function ClipCard({
           <Text style={clipStyles.metaText} numberOfLines={1}>{clip.location}</Text>
         </View>
         <View style={clipStyles.stats}>
-          <Text style={clipStyles.statText}>⬇ {clip.download_count.toLocaleString()}</Text>
-          <Text style={clipStyles.statText}>👁 {clip.view_count.toLocaleString()}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Ionicons name="eye-outline" size={11} color="#8B5CF6" />
+            <Text style={clipStyles.statText}>{(clip.view_count ?? 0).toLocaleString()}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Ionicons name="arrow-down-circle-outline" size={11} color="#555" />
+            <Text style={clipStyles.statText}>{clip.download_count.toLocaleString()}</Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>

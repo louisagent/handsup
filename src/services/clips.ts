@@ -175,7 +175,7 @@ export async function uploadClip(clip: {
   return data;
 }
 
-// Record a download
+// Record a download — also increments download_count on the clip
 export async function recordDownload(clipId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
@@ -184,6 +184,12 @@ export async function recordDownload(clipId: string): Promise<void> {
   await supabase
     .from('downloads')
     .upsert({ user_id: user.id, clip_id: clipId });
+  
+  // Increment download_count
+  const { data: clip } = await supabase.from('clips').select('download_count').eq('id', clipId).single();
+  if (clip) {
+    await supabase.from('clips').update({ download_count: (clip.download_count ?? 0) + 1 }).eq('id', clipId);
+  }
 }
 
 // Check if user has downloaded a clip
@@ -201,12 +207,24 @@ export async function hasDownloaded(clipId: string): Promise<boolean> {
   return !!data;
 }
 
-// Track a view
+// Track a view — also increments view_count on the clip
 export async function trackView(clipId: string): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
+  // Insert into clip_views for analytics
   await supabase
     .from('clip_views')
-    .insert({ clip_id: clipId, user_id: user?.id ?? null });
+    .insert({ clip_id: clipId, user_id: user?.id ?? null })
+    .then(() => {});
+  // Increment view_count directly
+  try {
+    await supabase.rpc('increment_clip_view', { p_clip_id: clipId });
+  } catch {
+    // Fallback if RPC doesn't exist: manual increment
+    const { data: clip } = await supabase.from('clips').select('view_count').eq('id', clipId).single();
+    if (clip) {
+      await supabase.from('clips').update({ view_count: (clip.view_count ?? 0) + 1 }).eq('id', clipId);
+    }
+  }
 }
 
 // Get clips from people the current user follows

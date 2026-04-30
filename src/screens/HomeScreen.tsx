@@ -23,7 +23,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LazyImage } from '../components/LazyImage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Clip } from '../types';
-import { getRecentClips, getTrendingClips, getFollowingClips, recordDownload, getForYouFeed, getThisTimeLastYearClips, getFeaturedFestivalClips } from '../services/clips';
+import { getRecentClips, getTrendingClips, getFollowingClips, recordDownload, getForYouFeed, getThisTimeLastYearClips, getFeaturedFestivalClips, trackView } from '../services/clips';
 import { getUpcomingEventsByCity, getUpcomingEvents } from '../services/events';
 import { getRepostFeed, RepostFeedItem } from '../services/repostsService';
 import { isOnline, subscribeToNetwork, cacheHomeFeed, getCachedHomeFeed } from '../services/network';
@@ -78,6 +78,8 @@ export default function HomeScreen({ navigation }: any) {
   const followingScale = useRef(new Animated.Value(1)).current;
   // Pulsing green dot for "HAPPENING NOW"
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  // Track visible clip for auto-play
+  const [visibleClipId, setVisibleClipId] = useState<string | null>(null);
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -396,7 +398,7 @@ export default function HomeScreen({ navigation }: any) {
     </View>
   );
 
-  const renderClipCard = (video: Clip & { reposted_by?: string }, keyPrefix = '', index = 0) => (
+  const renderClipCard = (video: Clip & { reposted_by?: string }, keyPrefix = '', index = 0, isActive = false) => (
     <View key={`${keyPrefix}${video.id}`}>
       {video.reposted_by && (
         <View style={styles.repostHeader}>
@@ -411,10 +413,30 @@ export default function HomeScreen({ navigation }: any) {
         onPress={() => goToVideo(video)}
         onArtistPress={() => goToArtist(video.artist)}
         onLongPress={() => handleLongPress(video)}
-        autoPlay={feedTab === 'forYou' && index === 0}
+        isActive={isActive}
       />
     </View>
   );
+
+  // Track clip visibility for auto-play
+  const handleForYouScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, layoutMeasurement } = event.nativeEvent;
+    const scrollY = contentOffset.y;
+    const screenHeight = layoutMeasurement.height;
+    // Simple heuristic: consider the clip at the center of the screen as "visible"
+    const centerY = scrollY + screenHeight / 2;
+    // This is a basic approach - in a real FlatList we'd use onViewableItemsChanged
+    // For ScrollView with .map(), we approximate based on scroll position
+    // (Note: This won't be super accurate but is a simple start)
+    const cardHeight = 600; // rough estimate for clip card height
+    const estimatedIndex = Math.floor(centerY / cardHeight);
+    const activeClip = forYouClips[estimatedIndex];
+    if (activeClip && activeClip.id !== visibleClipId) {
+      setVisibleClipId(activeClip.id);
+      // Track view when clip scrolls into view
+      trackView(activeClip.id).catch(() => {});
+    }
+  };
 
   if (loading && recent.length === 0) {
     return (
@@ -525,7 +547,12 @@ export default function HomeScreen({ navigation }: any) {
         ref={scrollViewRef}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={200}
-        onScroll={handleScroll}
+        onScroll={(e) => {
+          handleScroll(e);
+          if (feedTab === 'forYou') {
+            handleForYouScroll(e);
+          }
+        }}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
@@ -584,8 +611,8 @@ export default function HomeScreen({ navigation }: any) {
               </View>
               <View style={styles.activityStatPill}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Ionicons name="arrow-down-circle-outline" size={14} color="#8B5CF6" />
-                  <Text style={styles.activityStatText}><Text style={styles.activityStatNumber}>{downloadsToday}</Text> downloads</Text>
+                  <Ionicons name="eye-outline" size={14} color="#8B5CF6" />
+                  <Text style={styles.activityStatText}><Text style={styles.activityStatNumber}>{downloadsToday}</Text> views today</Text>
                 </View>
               </View>
               <View style={styles.activityStatPill}>
@@ -779,10 +806,10 @@ export default function HomeScreen({ navigation }: any) {
                       <View style={styles.trendOverlay}>
                         <Text style={styles.trendArtist} numberOfLines={1}>{video.artist}</Text>
                         <Text style={styles.trendMeta}>{video.location}</Text>
-                        {video.download_count > 0 && (
+                        {(video.view_count ?? 0) > 0 && (
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Ionicons name="arrow-down-circle-outline" size={12} color="#8B5CF6" />
-                            <Text style={styles.trendDownloads}>{video.download_count.toLocaleString()}</Text>
+                            <Ionicons name="eye-outline" size={12} color="#8B5CF6" />
+                            <Text style={styles.trendDownloads}>{(video.view_count ?? 0).toLocaleString()}</Text>
                           </View>
                         )}
                       </View>
@@ -814,13 +841,13 @@ export default function HomeScreen({ navigation }: any) {
                       <Text style={styles.featuredTitle}>{featuredFestival.festivalName}</Text>
                       <Text style={styles.featuredSub}>Explore clips from this festival</Text>
                     </View>
-                    {featuredFestival.clips.map((clip) => renderClipCard(clip, 'featured-'))}
+                    {featuredFestival.clips.map((clip, idx) => renderClipCard(clip, 'featured-', idx, visibleClipId === clip.id))}
                   </View>
                 ) : (
                   <Text style={styles.emptyText}>0 clips. You're early. Set the tone 🔥</Text>
                 )
               ) : (
-                forYouClips.map((v, i) => renderClipCard(v, 'foryou-', i))
+                forYouClips.map((v, i) => renderClipCard(v, 'foryou-', i, visibleClipId === v.id))
               )}
             </View>
           </>

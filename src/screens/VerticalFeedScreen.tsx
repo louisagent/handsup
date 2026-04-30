@@ -19,7 +19,7 @@ import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Clip } from '../types';
-import { getRecentClips, recordDownload, resolveVideoUrl } from '../services/clips';
+import { getRecentClips, recordDownload, resolveVideoUrl, trackView } from '../services/clips';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -218,15 +218,17 @@ function FeedItem({ item, isVisible, isMuted, onToggleMute, navigation }: FeedIt
   const savedFlashKey = useRef(0);
   const sharedFlashKey = useRef(0);
 
-  // Play / pause based on visibility
+  // Play / pause based on visibility + track view when visible
   React.useEffect(() => {
     if (!videoRef.current) return;
     if (isVisible) {
       videoRef.current.playAsync().catch(() => {});
+      // Track view when clip becomes visible
+      trackView(item.id).catch(() => {});
     } else {
       videoRef.current.pauseAsync().catch(() => {});
     }
-  }, [isVisible]);
+  }, [isVisible, item.id]);
 
   const handleLike = useCallback(() => {
     if (!liked) {

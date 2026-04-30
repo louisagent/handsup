@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Video, ResizeMode } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { Clip } from '../types';
 
 const ACTION_WIDTH = 150; // total width of the revealed action tray
@@ -30,7 +31,7 @@ interface Props {
   onPress: () => void;
   onArtistPress: () => void;
   onLongPress: () => void;
-  autoPlay?: boolean; // Auto-play muted video preview when true
+  isActive?: boolean; // Auto-play muted video preview when active
 }
 
 export const SwipeableClipCard: React.FC<Props> = ({
@@ -40,7 +41,7 @@ export const SwipeableClipCard: React.FC<Props> = ({
   onPress,
   onArtistPress,
   onLongPress,
-  autoPlay = false,
+  isActive = false,
 }) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const isOpen = useRef(false);
@@ -49,16 +50,16 @@ export const SwipeableClipCard: React.FC<Props> = ({
   const videoRef = useRef<Video>(null);
   const [showVideo, setShowVideo] = useState(false);
 
-  // Auto-play muted video when autoPlay is true
+  // Auto-play muted video when isActive is true
   useEffect(() => {
-    if (autoPlay && videoRef.current) {
+    if (isActive && videoRef.current) {
       videoRef.current.playAsync().catch(() => {});
       setShowVideo(true);
-    } else if (!autoPlay && videoRef.current) {
+    } else if (!isActive && videoRef.current) {
       videoRef.current.pauseAsync().catch(() => {});
       setShowVideo(false);
     }
-  }, [autoPlay]);
+  }, [isActive]);
 
   const snapToOpen = useCallback(() => {
     isOpen.current = true;
@@ -215,7 +216,7 @@ export const SwipeableClipCard: React.FC<Props> = ({
         >
           {/* Thumbnail — full width, no margin */}
           <View style={styles.thumbnailContainer}>
-            {showVideo && autoPlay && video.video_url ? (
+            {showVideo && isActive && video.video_url ? (
               <Video
                 ref={videoRef}
                 source={{ uri: video.video_url }}
@@ -223,7 +224,7 @@ export const SwipeableClipCard: React.FC<Props> = ({
                 resizeMode={ResizeMode.COVER}
                 isLooping
                 isMuted
-                shouldPlay={autoPlay}
+                shouldPlay={isActive}
               />
             ) : video.thumbnail_url ? (
               <Image source={{ uri: video.thumbnail_url }} style={styles.thumbnail} />
@@ -238,21 +239,29 @@ export const SwipeableClipCard: React.FC<Props> = ({
           </View>
 
           {/* Stats bar — directly below thumbnail; hidden when all counts are 0 */}
-          {(video.view_count > 0 || video.download_count > 0 || (video.repost_count ?? 0) > 0 || video.duration_seconds != null) && (
+          {((video.view_count ?? 0) > 0 || video.download_count > 0 || (video.repost_count ?? 0) > 0 || video.duration_seconds != null) && (
             <View style={styles.statsBar}>
-              {video.view_count > 0 && (
+              {/* Views as PRIMARY stat */}
+              {(video.view_count ?? 0) > 0 && (
                 <>
                   <View style={styles.statCol}>
-                    <Text style={styles.statValue}>{video.view_count.toLocaleString()}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="eye-outline" size={12} color="#8B5CF6" />
+                      <Text style={styles.statValue}>{(video.view_count ?? 0).toLocaleString()}</Text>
+                    </View>
                     <Text style={styles.statLabel}>Views</Text>
                   </View>
                   <View style={styles.statDivider} />
                 </>
               )}
+              {/* Downloads as secondary stat */}
               {video.download_count > 0 && (
                 <>
                   <View style={styles.statCol}>
-                    <Text style={styles.statValue}>{video.download_count.toLocaleString()}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                      <Ionicons name="arrow-down-circle-outline" size={12} color="#aaa" />
+                      <Text style={styles.statValue}>{video.download_count.toLocaleString()}</Text>
+                    </View>
                     <Text style={styles.statLabel}>Downloads</Text>
                   </View>
                   <View style={styles.statDivider} />
