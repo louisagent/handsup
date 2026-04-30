@@ -16,6 +16,9 @@ import {
   Image,
   Modal,
   TextInput,
+  Alert,
+  Platform,
+  ActionSheetIOS,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, NavigationProp, useFocusEffect } from '@react-navigation/native';
@@ -144,6 +147,40 @@ export default function InboxScreen() {
     });
   };
 
+  const handleDeleteConversation = async (conversationId: string, username: string) => {
+    const deleteAction = async () => {
+      try {
+        await supabase.from('conversations').delete().eq('id', conversationId);
+        setConversations((prev) => prev.filter((c) => c.id !== conversationId));
+      } catch (error) {
+        Alert.alert('Error', 'Could not delete conversation');
+      }
+    };
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Delete Conversation', 'Cancel'],
+          destructiveButtonIndex: 0,
+          cancelButtonIndex: 1,
+          message: `Delete conversation with @${username}?`,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) deleteAction();
+        }
+      );
+    } else {
+      Alert.alert(
+        'Delete Conversation',
+        `Delete conversation with @${username}? This cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: deleteAction },
+        ]
+      );
+    }
+  };
+
   const renderConversation = ({ item }: { item: Conversation }) => {
     const otherUser = item.other_user;
     if (!otherUser) return null;
@@ -154,7 +191,9 @@ export default function InboxScreen() {
       <TouchableOpacity
         style={styles.conversationItem}
         onPress={() => handleConversationPress(item)}
+        onLongPress={() => handleDeleteConversation(item.id, otherUser.username)}
         activeOpacity={0.7}
+        delayLongPress={400}
       >
         {/* Avatar */}
         <View style={styles.avatarContainer}>

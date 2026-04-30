@@ -554,6 +554,13 @@ export default function ProfileScreen({ navigation }: any) {
         });
         const festivalEntries = Object.entries(festivalMap);
         if (festivalEntries.length === 0) return null;
+        // Sort by year (most recent first), then by name
+        const sortedFestivals = festivalEntries.sort(([_, a], [__, b]) => {
+          const yearA = parseInt(a.year) || 0;
+          const yearB = parseInt(b.year) || 0;
+          if (yearB !== yearA) return yearB - yearA; // descending year
+          return 0;
+        });
         return (
           <View style={styles.festivalsSection}>
             <Text style={styles.sectionTitle}>FESTIVALS</Text>
@@ -562,7 +569,7 @@ export default function ProfileScreen({ navigation }: any) {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.festivalBadgeRow}
             >
-              {festivalEntries.map(([fest, info]) => (
+              {sortedFestivals.map(([fest, info]) => (
                 <TouchableOpacity
                   key={fest}
                   style={styles.festivalBadge}
@@ -581,34 +588,37 @@ export default function ProfileScreen({ navigation }: any) {
 
       {/* ── Badges ── */}
       {/* ── BADGES (Earned badges only) ── */}
-      {badges.length > 0 ? (
-        <View style={styles.badgesSection}>
-          <Text style={styles.badgesTitle}>{badges.length} BADGE{badges.length !== 1 ? 'S' : ''}</Text>
-          {/* All badges (horizontally scrollable, same size) */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesRow}>
-            {badges.map((key) => {
-              const badge = BADGES[key];
-              if (!badge) return null;
-              return (
-                <TouchableOpacity
-                  key={key}
-                  style={styles.badgeUniform}
-                  onPress={() => setSelectedBadge({ key, ...badge })}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.badgeEmojiUniform}>{badge.emoji}</Text>
-                  <Text style={styles.badgeLabelUniform} numberOfLines={2}>{badge.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      ) : (
-        <View style={styles.badgesSection}>
-          <Text style={styles.badgesTitle}>0 BADGES</Text>
-          <Text style={styles.badgesEmpty}>Earn your first badge by uploading a clip</Text>
-        </View>
-      )}
+      {(() => {
+        // Filter out badges that don't exist in BADGES definition
+        const validBadges = badges.filter((key) => BADGES[key]);
+        return validBadges.length > 0 ? (
+          <View style={styles.badgesSection}>
+            <Text style={styles.badgesTitle}>{validBadges.length} BADGE{validBadges.length !== 1 ? 'S' : ''}</Text>
+            {/* All badges (horizontally scrollable, same size) */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesRow}>
+              {validBadges.map((key) => {
+                const badge = BADGES[key];
+                return (
+                  <TouchableOpacity
+                    key={key}
+                    style={styles.badgeUniform}
+                    onPress={() => setSelectedBadge({ key, ...badge })}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.badgeEmojiUniform}>{badge.emoji}</Text>
+                    <Text style={styles.badgeLabelUniform} numberOfLines={2}>{badge.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : (
+          <View style={styles.badgesSection}>
+            <Text style={styles.badgesTitle}>0 BADGES</Text>
+            <Text style={styles.badgesEmpty}>Earn your first badge by uploading a clip</Text>
+          </View>
+        );
+      })()}
 
       {/* ── Best Clip ── */}
       {bestClip && bestClip.download_count > 0 && (
