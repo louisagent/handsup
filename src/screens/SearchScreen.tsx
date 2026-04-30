@@ -23,6 +23,7 @@ import { SkeletonSearchRow } from '../components/SkeletonCard';
 import { trackEvent } from '../services/analytics';
 import { getEvents } from '../services/events';
 import { getCachedLocation, haversineDistance } from '../services/location';
+import { supabase } from '../services/supabase';
 
 const RECENT_SEARCHES_KEY = 'handsup_recent_searches';
 const MAX_RECENT = 5;
@@ -319,6 +320,7 @@ export default function SearchScreen({ navigation, route }: any) {
   const [allEvents, setAllEvents] = useState<Event[]>([]);
   const [allArtists, setAllArtists] = useState<Artist[]>([]);
   const [allArtistsLoading, setAllArtistsLoading] = useState(false);
+  const [allLocations, setAllLocations] = useState<string[]>([]);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autocompleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -341,6 +343,13 @@ export default function SearchScreen({ navigation, route }: any) {
     // Load all artists
     setAllArtistsLoading(true);
     getAllArtists().then(setAllArtists).catch(() => {}).finally(() => setAllArtistsLoading(false));
+    // Load distinct locations from clips
+    supabase.from('clips').select('location').not('location', 'is', null).then(({ data }) => {
+      if (data) {
+        const locs: string[] = [...new Set((data as any[]).map((r) => r.location as string).filter(Boolean))].sort();
+        setAllLocations(locs);
+      }
+    });
     // If initialQuery was passed (e.g. from hashtag tap), run search immediately
     if (route?.params?.initialQuery) {
       doSearch(route.params.initialQuery, category);
@@ -809,6 +818,27 @@ export default function SearchScreen({ navigation, route }: any) {
               </View>
             </View>
           )}
+
+          {/* Locations section */}
+          {(category === 'All' || category === 'Locations') && allLocations.length > 0 && (
+            <View>
+              <View style={styles.browseSectionHeader}>
+                <Text style={styles.browseSectionTitle}>Locations</Text>
+              </View>
+              {allLocations.map((loc) => (
+                <TouchableOpacity
+                  key={loc}
+                  style={styles.locationRow}
+                  onPress={() => { setQuery(loc); setCategory('Locations'); doSearch(loc, 'Locations'); }}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="location-outline" size={18} color="#8B5CF6" />
+                  <Text style={styles.locationRowText}>{loc}</Text>
+                  <Ionicons name="chevron-forward" size={14} color="#444" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </ScrollView>
       )}
 
@@ -1153,6 +1183,8 @@ const styles = StyleSheet.create({
   artistGridPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   artistGridName: { fontSize: 11, color: '#ccc', textAlign: 'center', fontWeight: '600' },
   artistGrid: { paddingHorizontal: 8 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#1a1a1a', gap: 12 },
+  locationRowText: { flex: 1, fontSize: 14, color: '#ddd', fontWeight: '500' },
 });
 
 const festivalStyles = StyleSheet.create({
