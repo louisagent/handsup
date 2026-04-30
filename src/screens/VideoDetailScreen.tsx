@@ -41,7 +41,7 @@ import * as Clipboard from 'expo-clipboard';
 import { supabase } from '../services/supabase';
 import { isFollowing, followUser, unfollowUser } from '../services/follows';
 import { isModerator } from '../services/moderator';
-import { getComments, postComment, Comment } from '../services/comments';
+import { getComments, postComment, Comment, toggleCommentReaction, getCommentReactions, REACTION_EMOJIS } from '../services/comments';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEY_AUTOPLAY, STORAGE_KEY_DATA_SAVER } from './SettingsScreen';
 import * as MediaLibrary from 'expo-media-library';
@@ -74,26 +74,21 @@ function timeAgo(dateStr: string): string {
 
 // ── Comment Row ────────────────────────────────────────────
 
-function CommentRow({ comment, currentUserId, onDelete, onMentionPress }: {
+function CommentRow({ comment, currentUserId, onDelete, onMentionPress, onReact, reactions }: {
   comment: Comment;
   currentUserId: string | null;
   onDelete: (id: string) => void;
   onMentionPress: (username: string) => void;
+  onReact: (commentId: string) => void;
+  reactions: Record<string, number>;
 }) {
   const username = comment.user?.username ?? 'unknown';
   const isVerified = comment.user?.is_verified ?? false;
   const isOwn = currentUserId === comment.user_id;
 
   const handleLongPress = () => {
-    if (!isOwn) return;
-    Alert.alert('Delete comment?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => onDelete(comment.id),
-      },
-    ]);
+    // Show reaction picker on long press
+    onReact(comment.id);
   };
 
   // Render comment text with @mentions as purple links
@@ -121,28 +116,41 @@ function CommentRow({ comment, currentUserId, onDelete, onMentionPress }: {
   };
 
   return (
-    <TouchableOpacity
-      style={styles.commentRow}
-      onLongPress={handleLongPress}
-      activeOpacity={0.8}
-    >
-      {/* Avatar */}
-      <View style={styles.commentAvatar}>
-        <Text style={styles.commentAvatarText}>{username[0]?.toUpperCase() ?? '?'}</Text>
-      </View>
-      <View style={styles.commentBody}>
-        <View style={styles.commentMeta}>
-          <Text style={[styles.commentUsername, isVerified && styles.commentUsernameVerified]}>
-            @{username}
-          </Text>
-          {isVerified && (
-            <Ionicons name="checkmark-circle" size={12} color="#8B5CF6" style={{ marginLeft: 3 }} />
-          )}
-          <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
+    <View>
+      <TouchableOpacity
+        style={styles.commentRow}
+        onLongPress={handleLongPress}
+        activeOpacity={0.8}
+      >
+        {/* Avatar */}
+        <View style={styles.commentAvatar}>
+          <Text style={styles.commentAvatarText}>{username[0]?.toUpperCase() ?? '?'}</Text>
         </View>
-        {renderCommentText(comment.text)}
-      </View>
-    </TouchableOpacity>
+        <View style={styles.commentBody}>
+          <View style={styles.commentMeta}>
+            <Text style={[styles.commentUsername, isVerified && styles.commentUsernameVerified]}>
+              @{username}
+            </Text>
+            {isVerified && (
+              <Ionicons name="checkmark-circle" size={12} color="#8B5CF6" style={{ marginLeft: 3 }} />
+            )}
+            <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
+          </View>
+          {renderCommentText(comment.text)}
+        </View>
+      </TouchableOpacity>
+      {/* Reaction counts */}
+      {Object.keys(reactions).length > 0 && (
+        <View style={styles.commentReactions}>
+          {Object.entries(reactions).map(([emoji, count]) => (
+            <View key={emoji} style={styles.commentReactionPill}>
+              <Text style={styles.commentReactionEmoji}>{emoji}</Text>
+              <Text style={styles.commentReactionCount}>{count}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -181,6 +189,11 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
   const [commentText, setCommentText] = useState('');
   const [posting, setPosting] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Comment reactions state
+  const [commentReactions, setCommentReactions] = useState<Record<string, Record<string, number>>>({});
+  const [reactionPickerVisible, setReactionPickerVisible] = useState(false);
+  const [reactionPickerCommentId, setReactionPickerCommentId] = useState<string | null>(null);
 
   // Reactions state
   const [reactions, setReactions] = useState<Record<string, number>>({});
@@ -375,6 +388,15 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
     try {
       const data = await getComments(video.id);
       setComments(data);
+      // Load reactions for each comment
+      const reactionsMap: Record<string, Record<string, number>> = {};
+      for (const comment of data) {
+        const reactions = await getCommentReactions(comment.id);
+        if (Object.keys(reactions).length > 0) {
+          reactionsMap[comment.id] = reactions;
+        }
+      }
+      setCommentReactions(reactionsMap);
     } catch {
       // silently fail — show empty
     } finally {
@@ -800,6 +822,36 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       setComments((prev) => prev.filter((c) => c.id !== commentId));
     } catch {
       Alert.alert('Error', 'Could not delete comment.');
+    }
+  };
+
+  const handleShowReactionPicker = (commentId: string) => {
+    if (!isLoggedIn) {
+      Alert.alert('Sign in to react');
+      return;
+    }
+    setReactionPickerCommentId(commentId);
+    setReactionPickerVisible(true);
+  };
+
+  const handleReactionSelect = async (emoji: string) => {
+    if (!reactionPickerCommentId) return;
+    const commentId = reactionPickerCommentId;
+    setReactionPickerVisible(false);
+    setReactionPickerCommentId(null);
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    try {
+      await toggleCommentReaction(commentId, emoji);
+      // Reload reactions for this comment
+      const reactions = await getCommentReactions(commentId);
+      setCommentReactions((prev) => ({
+        ...prev,
+        [commentId]: reactions,
+      }));
+    } catch {
+      // silently fail
     }
   };
 
@@ -1396,6 +1448,8 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
                     currentUserId={currentUserId}
                     onDelete={handleDeleteComment}
                     onMentionPress={(username) => navigation.navigate('UserProfile', { username })}
+                    onReact={handleShowReactionPicker}
+                    reactions={commentReactions[c.id] ?? {}}
                   />
                 ))}
               </View>
@@ -1459,6 +1513,31 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
 
         </View>
       </ScrollView>
+
+      {/* Reaction Picker Modal */}
+      {reactionPickerVisible && (
+        <TouchableOpacity
+          style={styles.reactionPickerOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setReactionPickerVisible(false);
+            setReactionPickerCommentId(null);
+          }}
+        >
+          <View style={styles.reactionPickerPill}>
+            {REACTION_EMOJIS.map((emoji) => (
+              <TouchableOpacity
+                key={emoji}
+                style={styles.reactionPickerBtn}
+                onPress={() => handleReactionSelect(emoji)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.reactionPickerEmoji}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -2009,6 +2088,61 @@ const styles = StyleSheet.create({
     color: '#555',
     fontSize: 14,
     fontWeight: '600',
+  },
+  commentReactions: {
+    flexDirection: 'row',
+    gap: 6,
+    marginLeft: 44,
+    marginTop: 6,
+    marginBottom: 6,
+    flexWrap: 'wrap',
+  },
+  commentReactionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#1a1228',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#8B5CF633',
+  },
+  commentReactionEmoji: {
+    fontSize: 12,
+  },
+  commentReactionCount: {
+    color: '#8B5CF6',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  reactionPickerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  reactionPickerPill: {
+    flexDirection: 'row',
+    backgroundColor: '#1a1a1a',
+    borderRadius: 30,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  reactionPickerBtn: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22,
+    backgroundColor: '#111',
+  },
+  reactionPickerEmoji: {
+    fontSize: 24,
   },
 
   // Festival related clips

@@ -56,6 +56,7 @@ import LineupAdminScreen from './src/screens/LineupAdminScreen';
 import AddArtistScreen from './src/screens/AddArtistScreen';
 import InboxScreen from './src/screens/InboxScreen';
 import ConversationScreen from './src/screens/ConversationScreen';
+import ShareToDMScreen from './src/screens/ShareToDMScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -398,6 +399,11 @@ export default function App() {
           name="VideoDetail"
           component={VideoDetailScreen as any}
           options={{ title: 'Clip', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="ShareToDM"
+          component={ShareToDMScreen as any}
+          options={{ headerShown: false, presentation: 'modal' }}
         />
         <Stack.Screen
           name="Artist"

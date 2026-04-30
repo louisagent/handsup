@@ -139,6 +139,35 @@ export async function sendMessage(conversationId: string, body: string): Promise
     .eq('id', conversationId);
 
   if (convError) throw convError;
+
+  // Send push notification to the other participant (non-blocking)
+  try {
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('participant_a, participant_b')
+      .eq('id', conversationId)
+      .single();
+
+    if (conv) {
+      const recipientId = conv.participant_a === user.id ? conv.participant_b : conv.participant_a;
+      const { data: sender } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+      const senderName = (sender as any)?.username ?? 'Someone';
+
+      // Dynamic import to avoid circular dependency
+      const { sendPushToUser } = await import('./notifications');
+      await sendPushToUser(recipientId, {
+        title: `💬 ${senderName}`,
+        body: body.length > 60 ? body.slice(0, 57) + '...' : body,
+        data: { type: 'message', conversationId },
+      });
+    }
+  } catch {
+    // Non-blocking — don't fail the message send
+  }
 }
 
 // Mark conversation as read
@@ -183,4 +212,13 @@ export async function getUnreadMessageCount(): Promise<number> {
   }
 
   return unreadConversations;
+}
+
+// Send a clip as a DM (for share-to-friend feature)
+export async function sendClipMessage(
+  conversationId: string,
+  clip: { id: string; artist: string; festival_name: string; thumbnail_url?: string | null }
+): Promise<void> {
+  const body = `🎵 ${clip.artist} @ ${clip.festival_name}\nhandsuplive.com/clip/${clip.id}`;
+  await sendMessage(conversationId, body);
 }

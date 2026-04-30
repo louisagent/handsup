@@ -194,3 +194,15 @@ export async function notifyFollow(followedUserId: string): Promise<void> {
     data: { type: 'follow', followerId: user.id },
   });
 }
+
+export async function notifyMessageReceived(
+  recipientUserId: string,
+  senderUsername: string,
+  preview?: string
+): Promise<void> {
+  await sendPushToUser(recipientUserId, {
+    title: `💬 ${senderUsername}`,
+    body: preview ? `Shared: ${preview}` : 'Sent you a message',
+    data: { type: 'message' },
+  });
+}

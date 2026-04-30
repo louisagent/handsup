@@ -13,6 +13,7 @@ import {
   PanResponder,
   GestureResponderEvent,
   Share,
+  Alert,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
@@ -265,18 +266,37 @@ function FeedItem({ item, isVisible, isMuted, onToggleMute, navigation }: FeedIt
   const handleShare = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     const shareUrl = `https://handsuplive.com/clip/${item.id}`;
-    try {
-      await Share.share({
-        message: `Check out this clip of ${item.artist} at ${item.festival_name} on handsup.live!\n${shareUrl}`,
-        url: shareUrl,
-        title: `${item.artist} – ${item.festival_name}`,
-      });
-    } catch {
-      // Share dismissed or failed — no-op
-    }
-    setSharedFlash(true);
-    setTimeout(() => setSharedFlash(false), 10);
-  }, [item]);
+    
+    Alert.alert(
+      'Share Clip',
+      `${item.artist} at ${item.festival_name}`,
+      [
+        {
+          text: 'Share externally',
+          onPress: async () => {
+            try {
+              await Share.share({
+                message: `Check out this clip of ${item.artist} at ${item.festival_name} on handsup.live!\n${shareUrl}`,
+                url: shareUrl,
+                title: `${item.artist} – ${item.festival_name}`,
+              });
+            } catch {
+              // Share dismissed or failed — no-op
+            }
+            setSharedFlash(true);
+            setTimeout(() => setSharedFlash(false), 10);
+          },
+        },
+        {
+          text: 'Send to friend',
+          onPress: () => {
+            navigation.navigate('ShareToDM', { clip: item });
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  }, [item, navigation]);
 
   // ── Swipe left/right pan responder ─────────────────────
   const panResponder = useRef(

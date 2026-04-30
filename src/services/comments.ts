@@ -75,3 +75,37 @@ export async function deleteComment(commentId: string): Promise<void> {
 
   if (error) throw error;
 }
+
+// Comment reactions
+const REACTION_EMOJIS = ['❤️', '😂', '🔥', '😮', '👏', '🙌'] as const;
+
+export async function toggleCommentReaction(commentId: string, emoji: string): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data: existing } = await supabase
+    .from('comment_reactions')
+    .select('id')
+    .eq('comment_id', commentId)
+    .eq('user_id', user.id)
+    .eq('emoji', emoji)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase.from('comment_reactions').delete().eq('id', existing.id);
+  } else {
+    await supabase.from('comment_reactions').insert({ comment_id: commentId, user_id: user.id, emoji });
+  }
+}
+
+export async function getCommentReactions(commentId: string): Promise<Record<string, number>> {
+  const { data } = await supabase
+    .from('comment_reactions')
+    .select('emoji')
+    .eq('comment_id', commentId);
+  const counts: Record<string, number> = {};
+  for (const r of (data ?? [])) counts[r.emoji] = (counts[r.emoji] ?? 0) + 1;
+  return counts;
+}
+
+export { REACTION_EMOJIS };
