@@ -127,7 +127,7 @@ export default function InboxScreen() {
             style={[styles.lastMessage, hasUnread && styles.lastMessageUnread]}
             numberOfLines={1}
           >
-            {item.last_message || 'No messages yet'}
+            {item.last_message_preview || 'No messages yet'}
           </Text>
         </View>
       </TouchableOpacity>
