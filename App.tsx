@@ -30,6 +30,7 @@ import AuthScreen from './src/screens/AuthScreen';
 import EventDetailScreen from './src/screens/EventDetailScreen';
 import GroupDetailScreen from './src/screens/GroupDetailScreen';
 import CreateGroupScreen from './src/screens/CreateGroupScreen';
+import GroupsScreen from './src/screens/GroupsScreen';
 import EventsScreen from './src/screens/EventsScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import VerticalFeedScreen from './src/screens/VerticalFeedScreen';
@@ -419,6 +420,11 @@ export default function App() {
           name="GroupDetail"
           component={GroupDetailScreen as any}
           options={({ route }: any) => ({ title: route.params?.groupName ?? 'Group', headerBackTitle: 'Back' })}
+        />
+        <Stack.Screen
+          name="GroupsScreen"
+          component={GroupsScreen as any}
+          options={{ title: 'Groups', headerBackTitle: 'Back' }}
         />
         <Stack.Screen
           name="CreateGroup"
