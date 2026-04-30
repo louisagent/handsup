@@ -16,6 +16,8 @@ import {
   Image,
   Modal,
   TextInput,
+  Platform,
+  ActionSheetIOS,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
@@ -353,7 +355,7 @@ export default function AdminScreen({ navigation }: any) {
 
   // ── Content actions ────────────────────────────────────────
 
-  const handleEditArtistPhoto = async (artist: Artist) => {
+  const uploadArtistPhotoFromGallery = async (artist: Artist) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -398,7 +400,64 @@ export default function AdminScreen({ navigation }: any) {
     }
   };
 
-  const handleEditFestivalPhoto = async (festivalName: string) => {
+  const useArtistPhotoFromEvent = async (artist: Artist) => {
+    setUploadingIds((prev) => new Set(prev).add(artist.id));
+    try {
+      // Look up event/festival by artist name (exact match)
+      const { data: festivalData } = await supabase
+        .from('festival_images')
+        .select('image_url')
+        .ilike('festival_name', artist.name)
+        .limit(1)
+        .single();
+
+      if (!festivalData?.image_url) {
+        Alert.alert('Not Found', `No event/festival found with name "${artist.name}" or event has no photo`);
+        return;
+      }
+
+      const { error: updateError } = await supabase
+        .from('artists')
+        .update({ image_url: festivalData.image_url })
+        .eq('id', artist.id);
+
+      if (updateError) throw updateError;
+
+      setArtists((prev) => prev.map((a) => a.id === artist.id ? { ...a, image_url: festivalData.image_url } : a));
+      Alert.alert('Success', `Using event photo for ${artist.name}`);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to use event photo');
+    } finally {
+      setUploadingIds((prev) => { const next = new Set(prev); next.delete(artist.id); return next; });
+    }
+  };
+
+  const handleEditArtistPhoto = (artist: Artist) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Upload from Gallery', 'Use Event Photo', 'Cancel'],
+          cancelButtonIndex: 2,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) uploadArtistPhotoFromGallery(artist);
+          else if (buttonIndex === 1) useArtistPhotoFromEvent(artist);
+        }
+      );
+    } else {
+      Alert.alert(
+        'Edit Photo',
+        `Choose a source for ${artist.name}`,
+        [
+          { text: 'Upload from Gallery', onPress: () => uploadArtistPhotoFromGallery(artist) },
+          { text: 'Use Event Photo', onPress: () => useArtistPhotoFromEvent(artist) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+    }
+  };
+
+  const uploadFestivalPhotoFromGallery = async (festivalName: string) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -440,6 +499,62 @@ export default function AdminScreen({ navigation }: any) {
       Alert.alert('Error', e?.message ?? 'Failed to upload photo');
     } finally {
       setUploadingIds((prev) => { const next = new Set(prev); next.delete(festivalName); return next; });
+    }
+  };
+
+  const useFestivalPhotoFromArtist = async (festivalName: string) => {
+    setUploadingIds((prev) => new Set(prev).add(festivalName));
+    try {
+      // Look up artist by name (exact match)
+      const { data: artistData } = await supabase
+        .from('artists')
+        .select('image_url')
+        .ilike('name', festivalName)
+        .limit(1)
+        .single();
+
+      if (!artistData?.image_url) {
+        Alert.alert('Not Found', `No artist found with name "${festivalName}" or artist has no photo`);
+        return;
+      }
+
+      const { error: upsertError } = await supabase
+        .from('festival_images')
+        .upsert({ festival_name: festivalName, image_url: artistData.image_url });
+
+      if (upsertError) throw upsertError;
+
+      setFestivals((prev) => prev.map((f) => f.name === festivalName ? { ...f, image_url: artistData.image_url } : f));
+      Alert.alert('Success', `Using artist photo for ${festivalName}`);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to use artist photo');
+    } finally {
+      setUploadingIds((prev) => { const next = new Set(prev); next.delete(festivalName); return next; });
+    }
+  };
+
+  const handleEditFestivalPhoto = (festivalName: string) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Upload from Gallery', 'Use Artist Photo', 'Cancel'],
+          cancelButtonIndex: 2,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) uploadFestivalPhotoFromGallery(festivalName);
+          else if (buttonIndex === 1) useFestivalPhotoFromArtist(festivalName);
+        }
+      );
+    } else {
+      Alert.alert(
+        'Edit Photo',
+        `Choose a source for ${festivalName}`,
+        [
+          { text: 'Upload from Gallery', onPress: () => uploadFestivalPhotoFromGallery(festivalName) },
+          { text: 'Use Artist Photo', onPress: () => useFestivalPhotoFromArtist(festivalName) },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
     }
   };
 
