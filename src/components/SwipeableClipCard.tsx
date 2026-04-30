@@ -24,6 +24,12 @@ import { Clip } from '../types';
 const ACTION_WIDTH = 150; // total width of the revealed action tray
 const SNAP_THRESHOLD = 60; // min drag to trigger snap-open
 
+// Strip iOS video trim metadata from text fields
+function stripVideoMetadata(text: string | undefined): string {
+  if (!text) return '';
+  return text.replace(/\[trim:[\d.]+ms\]/g, '').trim();
+}
+
 interface Props {
   video: Clip;
   isSaved: boolean;
@@ -234,7 +240,7 @@ export const SwipeableClipCard: React.FC<Props> = ({
           </View>
 
           {/* Stats bar — directly below thumbnail; hidden when all counts are 0 */}
-          {((video.view_count ?? 0) > 0 || video.download_count > 0 || (video.repost_count ?? 0) > 0) && (
+          {((video.view_count ?? 0) > 0 || (video.repost_count ?? 0) > 0) && (
             <View style={styles.statsBar}>
               {/* Views as PRIMARY stat */}
               {(video.view_count ?? 0) > 0 && (
@@ -245,19 +251,6 @@ export const SwipeableClipCard: React.FC<Props> = ({
                       <Text style={styles.statValue}>{(video.view_count ?? 0).toLocaleString()}</Text>
                     </View>
                     <Text style={styles.statLabel}>Views</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                </>
-              )}
-              {/* Downloads as secondary stat */}
-              {video.download_count > 0 && (
-                <>
-                  <View style={styles.statCol}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                      <Ionicons name="arrow-down-circle-outline" size={12} color="#aaa" />
-                      <Text style={styles.statValue}>{video.download_count.toLocaleString()}</Text>
-                    </View>
-                    <Text style={styles.statLabel}>Downloads</Text>
                   </View>
                   <View style={styles.statDivider} />
                 </>
@@ -277,7 +270,7 @@ export const SwipeableClipCard: React.FC<Props> = ({
           <View style={styles.cardBody}>
             <View style={styles.cardTitleRow}>
               <TouchableOpacity onPress={onArtistPress} style={{ flex: 1 }}>
-                <Text style={styles.artist}>{video.artist}</Text>
+                <Text style={styles.artist}>{stripVideoMetadata(video.artist)}</Text>
               </TouchableOpacity>
               {/* Track ID pill */}
               <View style={styles.trackIdPill}>
@@ -289,7 +282,7 @@ export const SwipeableClipCard: React.FC<Props> = ({
                 </Text>
               </View>
             </View>
-            <Text style={styles.festival}>{video.festival_name}</Text>
+            <Text style={styles.festival}>{stripVideoMetadata(video.festival_name)}</Text>
             {video.uploader?.username ? (
               <View style={styles.uploaderRow}>
                 <Text style={styles.uploader}>@{video.uploader.username}</Text>

@@ -17,6 +17,7 @@ import {
   Share,
   Animated,
   Easing,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -83,6 +84,8 @@ export default function HomeScreen({ navigation }: any) {
   const pulseAnim = useRef(new Animated.Value(1)).current;
   // Track visible clip for auto-play
   const [visibleClipId, setVisibleClipId] = useState<string | null>(null);
+  const [loadingMoreForYou, setLoadingMoreForYou] = useState(false);
+  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
   useEffect(() => {
     const pulse = Animated.loop(
@@ -433,23 +436,48 @@ export default function HomeScreen({ navigation }: any) {
     </View>
   );
 
+  // Load more For You clips when scrolling near the end
+  const loadMoreForYouClips = useCallback(async () => {
+    if (loadingMoreForYou || forYouLoading) return;
+    try {
+      setLoadingMoreForYou(true);
+      const offset = forYouClips.length;
+      const more = await getRecentClips(20, offset);
+      setForYouClips(prev => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const newClips = more.filter(c => !existingIds.has(c.id));
+        return [...prev, ...newClips];
+      });
+    } catch {
+      // silent fail
+    } finally {
+      setLoadingMoreForYou(false);
+    }
+  }, [forYouClips.length, loadingMoreForYou, forYouLoading]);
+
   // Track clip visibility for auto-play
   const handleForYouScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, layoutMeasurement } = event.nativeEvent;
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     const scrollY = contentOffset.y;
-    const screenHeight = layoutMeasurement.height;
+    const viewHeight = layoutMeasurement.height;
+    
+    // Calculate card height based on portrait aspect ratio (9:16)
+    const cardHeight = screenWidth * (16 / 9) + 80; // thumbnail + info row
+    
     // Simple heuristic: consider the clip at the center of the screen as "visible"
-    const centerY = scrollY + screenHeight / 2;
-    // This is a basic approach - in a real FlatList we'd use onViewableItemsChanged
-    // For ScrollView with .map(), we approximate based on scroll position
-    // (Note: This won't be super accurate but is a simple start)
-    const cardHeight = 600; // rough estimate for clip card height
+    const centerY = scrollY + viewHeight / 2;
     const estimatedIndex = Math.floor(centerY / cardHeight);
     const activeClip = forYouClips[estimatedIndex];
     if (activeClip && activeClip.id !== visibleClipId) {
       setVisibleClipId(activeClip.id);
       // Track view when clip scrolls into view
       trackView(activeClip.id).catch(() => {});
+    }
+    
+    // Infinite scroll: load more when approaching the end
+    const distanceFromEnd = contentSize.height - scrollY - viewHeight;
+    if (distanceFromEnd < viewHeight * 1.5 && !loadingMoreForYou) {
+      loadMoreForYouClips();
     }
   };
 
@@ -876,7 +904,14 @@ export default function HomeScreen({ navigation }: any) {
                   <Text style={styles.emptyText}>0 clips. You're early. Set the tone 🔥</Text>
                 )
               ) : (
-                forYouClips.map((v, i) => renderClipCard(v, 'foryou-', i, visibleClipId === v.id))
+                <>
+                  {forYouClips.map((v, i) => renderClipCard(v, 'foryou-', i, visibleClipId === v.id))}
+                  {loadingMoreForYou && (
+                    <View style={{ padding: 16, alignItems: 'center' }}>
+                      <ActivityIndicator size="small" color="#8B5CF6" />
+                    </View>
+                  )}
+                </>
               )}
             </View>
           </>

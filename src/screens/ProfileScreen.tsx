@@ -579,9 +579,24 @@ export default function ProfileScreen({ navigation }: any) {
 
       {/* ── Badges ── */}
       {/* ── BADGES (Earned badges only) ── */}
-      {badges.length > 0 && (
+      {badges.length > 0 ? (
         <View style={styles.badgesSection}>
-          <Text style={styles.badgesTitle}>BADGES</Text>
+          <Text style={styles.badgesTitle}>{badges.length} BADGE{badges.length !== 1 ? 'S' : ''}</Text>
+          {/* Top 5 most recent badges (non-scrollable) */}
+          {badges.length > 0 && (
+            <View style={styles.badgesTopRow}>
+              {badges.slice(0, 5).map((key) => {
+                const badge = BADGES[key];
+                if (!badge) return null;
+                return (
+                  <View key={key} style={styles.badgeCompact}>
+                    <Text style={styles.badgeEmojiCompact}>{badge.emoji}</Text>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+          {/* All badges (horizontally scrollable) */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.badgesRow}>
             {badges.map((key) => {
               const badge = BADGES[key];
@@ -595,10 +610,9 @@ export default function ProfileScreen({ navigation }: any) {
             })}
           </ScrollView>
         </View>
-      )}
-      {badges.length === 0 && (
+      ) : (
         <View style={styles.badgesSection}>
-          <Text style={styles.badgesTitle}>BADGES</Text>
+          <Text style={styles.badgesTitle}>0 BADGES</Text>
           <Text style={styles.badgesEmpty}>Earn your first badge by uploading a clip 🎬</Text>
         </View>
       )}
@@ -1024,6 +1038,25 @@ const styles = StyleSheet.create({
     color: '#8B5CF6',
     letterSpacing: 2,
     marginBottom: 12,
+  },
+  badgesTopRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    justifyContent: 'flex-start',
+  },
+  badgeCompact: {
+    backgroundColor: '#111',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#2a1650',
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeEmojiCompact: {
+    fontSize: 24,
   },
   badgesEmpty: {
     fontSize: 13,

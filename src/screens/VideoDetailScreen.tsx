@@ -60,6 +60,12 @@ type Props = {
 
 // ── Helpers ────────────────────────────────────────────────
 
+// Strip iOS video trim metadata from text fields
+function stripVideoMetadata(text: string | undefined): string {
+  if (!text) return '';
+  return text.replace(/\[trim:[\d.]+ms\]/g, '').trim();
+}
+
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -1020,7 +1026,7 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
           <View style={styles.artistRow}>
             <View style={styles.artistNameRow}>
               <TouchableOpacity onPress={() => navigation.navigate('Artist', { artist: video.artist })} activeOpacity={0.7}>
-                <Text style={[styles.artist, { textDecorationLine: 'underline' }]}>{video.artist}</Text>
+                <Text style={[styles.artist, { textDecorationLine: 'underline' }]}>{stripVideoMetadata(video.artist)}</Text>
               </TouchableOpacity>
               {video.track_name && video.track_artist ? (
                 <TouchableOpacity
@@ -1061,7 +1067,7 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
               </TouchableOpacity>
             )}
           </View>
-          <Text style={styles.festival}>{video.festival_name}</Text>
+          <Text style={styles.festival}>{stripVideoMetadata(video.festival_name)}</Text>
 
           <View style={styles.metaRow}>
             <Ionicons name="location-outline" size={13} color="#666" />
@@ -1070,9 +1076,9 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
             <Text style={styles.metaText}>{formatDate(video.clip_date)}</Text>
           </View>
 
-          {video.description ? (
+          {stripVideoMetadata(video.description) ? (
             <Text style={styles.description}>
-              {splitByHashtagsAndMentions(video.description).map((segment, i) =>
+              {splitByHashtagsAndMentions(stripVideoMetadata(video.description)).map((segment, i) =>
                 segment.startsWith('#') ? (
                   <Text
                     key={i}

@@ -465,7 +465,22 @@ export default function UserProfileScreen({ route, navigation }: any) {
         {/* Badges (earned only) */}
         {userBadges.length > 0 && (
           <View style={styles.badgesSection}>
-            <Text style={styles.badgesTitle}>Achievements</Text>
+            <Text style={styles.badgesTitle}>{userBadges.length} Achievement{userBadges.length !== 1 ? 's' : ''}</Text>
+            {/* Top 5 most recent badges (non-scrollable) */}
+            {userBadges.length > 0 && (
+              <View style={styles.badgesTopRow}>
+                {userBadges.slice(0, 5).map((key) => {
+                  const badge = BADGES[key];
+                  if (!badge) return null;
+                  return (
+                    <View key={key} style={styles.badgeCompact}>
+                      <Text style={styles.badgeEmojiCompact}>{badge.emoji}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+            {/* All badges (horizontally scrollable) */}
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -793,6 +808,25 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     letterSpacing: 2,
     textTransform: 'uppercase',
+  },
+  badgesTopRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    justifyContent: 'flex-start',
+  },
+  badgeCompact: {
+    backgroundColor: '#111',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#2a1650',
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeEmojiCompact: {
+    fontSize: 24,
   },
   badgesRow: { gap: 10 },
   badge: {
