@@ -55,6 +55,8 @@ export default function HomeScreen({ navigation }: any) {
   const [followingClips, setFollowingClips] = useState<Clip[]>([]);
   const [forYouClips, setForYouClips] = useState<Clip[]>([]);
   const [forYouLoading, setForYouLoading] = useState(false);
+  const [currentEvents, setCurrentEvents] = useState<any[]>([]);
+  const [happeningNowClips, setHappeningNowClips] = useState<Clip[]>([]);
   const [repostClips, setRepostClips] = useState<Array<Clip & { reposted_by?: string; reposted_at?: string }>>([]);
   const [lastYearClips, setLastYearClips] = useState<Clip[]>([]);
   const [featuredFestival, setFeaturedFestival] = useState<{ festivalName: string; clips: Clip[] } | null>(null);
@@ -156,6 +158,34 @@ export default function HomeScreen({ navigation }: any) {
       // Get current user for repost feed (non-blocking if unauthenticated)
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setForYouLoading(true);
+      // Query for currently happening events
+      const now = new Date().toISOString();
+      const { data: liveEvents } = await supabase
+        .from('events')
+        .select('id, name, festival_name, start_date, end_date')
+        .lte('start_date', now)
+        .gte('end_date', now)
+        .limit(10);
+      
+      setCurrentEvents(liveEvents ?? []);
+      
+      // If events exist, get clips for those festivals
+      let liveClips: Clip[] = [];
+      if (liveEvents && liveEvents.length > 0) {
+        const festNames = liveEvents.map(e => e.festival_name).filter(Boolean);
+        if (festNames.length > 0) {
+          const { data: liveClipsData } = await supabase
+            .from('clips')
+            .select('*, uploader:profiles!uploader_id(username, is_verified)')
+            .eq('is_approved', true)
+            .in('festival_name', festNames)
+            .order('created_at', { ascending: false })
+            .limit(5);
+          liveClips = liveClipsData ?? [];
+        }
+      }
+      setHappeningNowClips(liveClips);
+      
       const [trendingData, recentData, followingData, mutedIds, repostData, forYouData] = await Promise.all([
         getTrendingClips(3),
         getRecentClips(PAGE_SIZE, 0),
@@ -547,13 +577,22 @@ export default function HomeScreen({ navigation }: any) {
           return (
             <View style={styles.activityStatsBar}>
               <View style={styles.activityStatPill}>
-                <Text style={styles.activityStatText}>📤 <Text style={styles.activityStatNumber}>{uploadsToday}</Text> uploads today</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="cloud-upload-outline" size={14} color="#8B5CF6" />
+                  <Text style={styles.activityStatText}><Text style={styles.activityStatNumber}>{uploadsToday}</Text> uploads today</Text>
+                </View>
               </View>
               <View style={styles.activityStatPill}>
-                <Text style={styles.activityStatText}>⬇ <Text style={styles.activityStatNumber}>{downloadsToday}</Text> downloads</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="arrow-down-circle-outline" size={14} color="#8B5CF6" />
+                  <Text style={styles.activityStatText}><Text style={styles.activityStatNumber}>{downloadsToday}</Text> downloads</Text>
+                </View>
               </View>
               <View style={styles.activityStatPill}>
-                <Text style={styles.activityStatText}>🔥 <Text style={styles.activityStatNumber}>{clipsThisWeek}</Text> clips this week</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="trending-up-outline" size={14} color="#8B5CF6" />
+                  <Text style={styles.activityStatText}><Text style={styles.activityStatNumber}>{clipsThisWeek}</Text> clips this week</Text>
+                </View>
               </View>
             </View>
           );
@@ -572,7 +611,8 @@ export default function HomeScreen({ navigation }: any) {
             style={styles.watchFeedBanner}
           >
             <View style={styles.watchFeedLeftBorder} />
-            <Text style={styles.watchFeedText}>🔥 Watch what's happening now</Text>
+            <Ionicons name="radio-outline" size={14} color="#8B5CF6" />
+            <Text style={styles.watchFeedText}>Watch what's happening now</Text>
             <Text style={styles.watchFeedArrow}>›</Text>
           </LinearGradient>
         </TouchableOpacity>
@@ -583,14 +623,14 @@ export default function HomeScreen({ navigation }: any) {
           onPress={() => navigation.navigate('Trending')}
           activeOpacity={0.85}
         >
-          <Text style={styles.watchFeedIcon}>🔥</Text>
+          <Ionicons name="flame-outline" size={18} color="#8B5CF6" />
           <Text style={styles.watchFeedText}>Trending</Text>
           <Text style={styles.watchFeedArrow}>›</Text>
         </TouchableOpacity>
 
-        {/* HAPPENING NOW — top 3 recent clips with live activity summary */}
-        {recent.length > 0 && (() => {
-          const happeningClips = recent.slice(0, 3);
+        {/* HAPPENING NOW — only show if there are current events */}
+        {happeningNowClips.length > 0 && (() => {
+          const happeningClips = happeningNowClips.slice(0, 3);
           // Aggregate clip counts by festival
           const festivalCounts: Record<string, number> = {};
           recent.forEach((c) => {
@@ -710,7 +750,10 @@ export default function HomeScreen({ navigation }: any) {
             {trending.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>🔥 Trending this week</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="flame-outline" size={16} color="#8B5CF6" />
+                    <Text style={styles.sectionTitle}>Trending this week</Text>
+                  </View>
                 </View>
                 <ScrollView
                   horizontal
@@ -737,7 +780,10 @@ export default function HomeScreen({ navigation }: any) {
                         <Text style={styles.trendArtist} numberOfLines={1}>{video.artist}</Text>
                         <Text style={styles.trendMeta}>{video.location}</Text>
                         {video.download_count > 0 && (
-                          <Text style={styles.trendDownloads}>⬇ {video.download_count.toLocaleString()}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                            <Ionicons name="arrow-down-circle-outline" size={12} color="#8B5CF6" />
+                            <Text style={styles.trendDownloads}>{video.download_count.toLocaleString()}</Text>
+                          </View>
                         )}
                       </View>
                     </TouchableOpacity>
@@ -749,7 +795,10 @@ export default function HomeScreen({ navigation }: any) {
             {/* For You algorithmic feed */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>✨ For You</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="star-outline" size={16} color="#8B5CF6" />
+                  <Text style={styles.sectionTitle}>For You</Text>
+                </View>
               </View>
               {forYouLoading ? (
                 <View style={styles.loadingMoreContainer}>
@@ -779,7 +828,10 @@ export default function HomeScreen({ navigation }: any) {
           /* Following feed */
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>👥 From people you follow</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="people-outline" size={16} color="#8B5CF6" />
+                <Text style={styles.sectionTitle}>From people you follow</Text>
+              </View>
             </View>
             {followingClips.length === 0 && repostClips.length === 0 ? (
               <View style={styles.emptyState}>

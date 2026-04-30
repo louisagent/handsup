@@ -23,15 +23,27 @@ export async function getRecentClips(limit = 20, offset = 0): Promise<Clip[]> {
 
 // Get trending clips (most downloaded in last 7 days)
 export async function getTrendingClips(limit = 10): Promise<Clip[]> {
+  const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('clips')
     .select('*, uploader:profiles!uploader_id(username, is_verified)')
     .eq('is_approved', true)
-    .order('download_count', { ascending: false })
+    .gte('created_at', oneWeekAgo)
+    .order('view_count', { ascending: false })
     .limit(limit);
 
   if (error) throw error;
-  return data ?? [];
+  // Fallback: if no clips this week, return most recent clips
+  if (!data || data.length === 0) {
+    const { data: fallback } = await supabase
+      .from('clips')
+      .select('*, uploader:profiles!uploader_id(username, is_verified)')
+      .eq('is_approved', true)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    return fallback ?? [];
+  }
+  return data;
 }
 
 // Search clips by artist, festival, location, or date
@@ -646,5 +658,8 @@ export async function getForYouFeed(limit = 20): Promise<Clip[]> {
   // Sort by score (with slight shuffle for freshness)
   scored.sort((a, b) => b.score - a.score + (Math.random() - 0.5) * 5);
 
-  return scored.slice(0, limit).map((s) => s.clip);
+  const result = scored.slice(0, limit).map((s) => s.clip);
+  // Sort by created_at descending (newest first)
+  result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  return result;
 }
