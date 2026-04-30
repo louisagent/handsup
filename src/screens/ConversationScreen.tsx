@@ -238,6 +238,15 @@ export default function ConversationScreen() {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="chevron-back" size={28} color="#fff" />
         </TouchableOpacity>
+        {otherUser.avatar_url ? (
+          <Image source={{ uri: otherUser.avatar_url }} style={styles.headerAvatar} />
+        ) : (
+          <View style={styles.headerAvatar}>
+            <Text style={styles.headerAvatarText}>
+              {otherUser.username[0]?.toUpperCase() ?? '?'}
+            </Text>
+          </View>
+        )}
         <Text style={styles.headerTitle}>{otherUser.username}</Text>
         <View style={styles.headerSpacer} />
       </View>
@@ -322,10 +331,28 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
   },
+  headerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#fff',
+    overflow: 'hidden',
+  },
+  headerAvatarText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#fff',
+    flex: 1,
   },
   headerSpacer: {
     width: 40,

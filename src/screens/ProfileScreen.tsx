@@ -18,6 +18,7 @@ import {
   StatusBar,
   FlatList,
   Image,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -260,6 +261,7 @@ export default function ProfileScreen({ navigation }: any) {
   const [longestStreak, setLongestStreak] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const clipsYOffset = useRef<number>(0);
+  const [selectedBadge, setSelectedBadge] = useState<{ key: string; label: string; emoji: string; description: string } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -588,10 +590,15 @@ export default function ProfileScreen({ navigation }: any) {
               const badge = BADGES[key];
               if (!badge) return null;
               return (
-                <View key={key} style={styles.badgeUniform}>
+                <TouchableOpacity
+                  key={key}
+                  style={styles.badgeUniform}
+                  onPress={() => setSelectedBadge({ key, ...badge })}
+                  activeOpacity={0.7}
+                >
                   <Text style={styles.badgeEmojiUniform}>{badge.emoji}</Text>
                   <Text style={styles.badgeLabelUniform} numberOfLines={2}>{badge.label}</Text>
-                </View>
+                </TouchableOpacity>
               );
             })}
           </ScrollView>
@@ -752,6 +759,33 @@ export default function ProfileScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
     </ScrollView>
+
+    {/* Badge Info Modal */}
+    <Modal
+      visible={!!selectedBadge}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setSelectedBadge(null)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setSelectedBadge(null)}
+      >
+        <View style={styles.modalContent}>
+          <Text style={styles.modalEmoji}>{selectedBadge?.emoji}</Text>
+          <Text style={styles.modalTitle}>{selectedBadge?.label}</Text>
+          <Text style={styles.modalDescription}>{selectedBadge?.description}</Text>
+          <TouchableOpacity
+            style={styles.modalCloseBtn}
+            onPress={() => setSelectedBadge(null)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.modalCloseBtnText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
     </>
   );
 }
@@ -1112,5 +1146,53 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '400',
     lineHeight: 22,
+  },
+
+  // Badge Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#161616',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    maxWidth: 340,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#8B5CF6',
+  },
+  modalEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalDescription: {
+    fontSize: 15,
+    color: '#aaa',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalCloseBtn: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  modalCloseBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

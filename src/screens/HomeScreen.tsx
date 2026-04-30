@@ -456,7 +456,7 @@ export default function HomeScreen({ navigation }: any) {
   }, [forYouClips.length, loadingMoreForYou, forYouLoading]);
 
   // Track clip visibility for auto-play
-  const handleForYouScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  const handleClipScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
     const scrollY = contentOffset.y;
     const viewHeight = layoutMeasurement.height;
@@ -467,17 +467,23 @@ export default function HomeScreen({ navigation }: any) {
     // Simple heuristic: consider the clip at the center of the screen as "visible"
     const centerY = scrollY + viewHeight / 2;
     const estimatedIndex = Math.floor(centerY / cardHeight);
-    const activeClip = forYouClips[estimatedIndex];
+    
+    // Determine which clip array to check based on active tab
+    const currentClips = feedTab === 'forYou' ? forYouClips : followingClips;
+    const activeClip = currentClips[estimatedIndex];
+    
     if (activeClip && activeClip.id !== visibleClipId) {
       setVisibleClipId(activeClip.id);
       // Track view when clip scrolls into view
       trackView(activeClip.id).catch(() => {});
     }
     
-    // Infinite scroll: load more when approaching the end
-    const distanceFromEnd = contentSize.height - scrollY - viewHeight;
-    if (distanceFromEnd < viewHeight * 1.5 && !loadingMoreForYou) {
-      loadMoreForYouClips();
+    // Infinite scroll: load more when approaching the end (For You tab only)
+    if (feedTab === 'forYou') {
+      const distanceFromEnd = contentSize.height - scrollY - viewHeight;
+      if (distanceFromEnd < viewHeight * 1.5 && !loadingMoreForYou) {
+        loadMoreForYouClips();
+      }
     }
   };
 
@@ -595,9 +601,7 @@ export default function HomeScreen({ navigation }: any) {
         scrollEventThrottle={200}
         onScroll={(e) => {
           handleScroll(e);
-          if (feedTab === 'forYou') {
-            handleForYouScroll(e);
-          }
+          handleClipScroll(e);
         }}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
@@ -944,13 +948,13 @@ export default function HomeScreen({ navigation }: any) {
               </View>
             ) : (
               <>
-                {followingClips.map((v) => renderClipCard(v, 'following-'))}
+                {followingClips.map((v, i) => renderClipCard(v, 'following-', i, visibleClipId === v.id))}
                 {repostClips.length > 0 && (
                   <>
                     <View style={styles.sectionHeader}>
                       <Text style={styles.sectionTitle}>🔁 Reposts</Text>
                     </View>
-                    {repostClips.map((v) => renderClipCard(v, 'repost-'))}
+                    {repostClips.map((v, i) => renderClipCard(v, 'repost-', i, visibleClipId === v.id))}
                   </>
                 )}
               </>
