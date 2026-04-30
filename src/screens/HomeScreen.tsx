@@ -37,6 +37,8 @@ import { getCached, setCache } from '../utils/cache';
 import { getMutedUserIds } from '../services/mutedUsers';
 
 const FEED_CACHE_KEY = 'handsup_feed_cache';
+const EVENTS_CACHE_KEY = 'handsup_events_cache';
+const EVENTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface FeedCache {
   recent: Clip[];
@@ -57,6 +59,7 @@ export default function HomeScreen({ navigation }: any) {
   const [forYouLoading, setForYouLoading] = useState(false);
   const [currentEvents, setCurrentEvents] = useState<any[]>([]);
   const [happeningNowClips, setHappeningNowClips] = useState<Clip[]>([]);
+  const [happeningLoading, setHappeningLoading] = useState(true);
   const [repostClips, setRepostClips] = useState<Array<Clip & { reposted_by?: string; reposted_at?: string }>>([]);
   const [lastYearClips, setLastYearClips] = useState<Clip[]>([]);
   const [featuredFestival, setFeaturedFestival] = useState<{ festivalName: string; clips: Clip[] } | null>(null);
@@ -160,33 +163,45 @@ export default function HomeScreen({ navigation }: any) {
       // Get current user for repost feed (non-blocking if unauthenticated)
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       setForYouLoading(true);
-      // Query for currently happening events
-      const now = new Date().toISOString();
-      const { data: liveEvents } = await supabase
-        .from('events')
-        .select('id, name, festival_name, start_date, end_date')
-        .lte('start_date', now)
-        .gte('end_date', now)
-        .limit(10);
-      
-      setCurrentEvents(liveEvents ?? []);
-      
-      // If events exist, get clips for those festivals
-      let liveClips: Clip[] = [];
-      if (liveEvents && liveEvents.length > 0) {
-        const festNames = liveEvents.map(e => e.festival_name).filter(Boolean);
-        if (festNames.length > 0) {
-          const { data: liveClipsData } = await supabase
-            .from('clips')
-            .select('*, uploader:profiles!uploader_id(username, is_verified)')
-            .eq('is_approved', true)
-            .in('festival_name', festNames)
-            .order('created_at', { ascending: false })
-            .limit(5);
-          liveClips = liveClipsData ?? [];
+      setHappeningLoading(true);
+
+      // Check cache for events first
+      const cachedEvents = await getCached<{clips: Clip[], ts: number}>(EVENTS_CACHE_KEY);
+      if (cachedEvents && Date.now() - cachedEvents.ts < EVENTS_CACHE_TTL) {
+        setHappeningNowClips(cachedEvents.clips);
+        setHappeningLoading(false);
+      } else {
+        // Query for currently happening events
+        const now = new Date().toISOString();
+        const { data: liveEvents } = await supabase
+          .from('events')
+          .select('id, name, festival_name, start_date, end_date')
+          .lte('start_date', now)
+          .gte('end_date', now)
+          .limit(10);
+        
+        setCurrentEvents(liveEvents ?? []);
+        
+        // If events exist, get clips for those festivals
+        let liveClips: Clip[] = [];
+        if (liveEvents && liveEvents.length > 0) {
+          const festNames = liveEvents.map(e => e.festival_name).filter(Boolean);
+          if (festNames.length > 0) {
+            const { data: liveClipsData } = await supabase
+              .from('clips')
+              .select('*, uploader:profiles!uploader_id(username, is_verified)')
+              .eq('is_approved', true)
+              .in('festival_name', festNames)
+              .order('created_at', { ascending: false })
+              .limit(5);
+            liveClips = liveClipsData ?? [];
+          }
         }
+        setHappeningNowClips(liveClips);
+        setHappeningLoading(false);
+        // Cache the result
+        setCache(EVENTS_CACHE_KEY, { clips: liveClips, ts: Date.now() });
       }
-      setHappeningNowClips(liveClips);
       
       const [trendingData, recentData, followingData, mutedIds, repostData, forYouData] = await Promise.all([
         getTrendingClips(3),
@@ -311,8 +326,8 @@ export default function HomeScreen({ navigation }: any) {
   const goToVideo = useCallback((video: Clip) =>
     navigation.navigate('VerticalFeed', {
       initialClip: video,
-      clips: [...trending, ...recent].filter((c, idx, arr) => arr.findIndex(x => x.id === c.id) === idx),
-    }), [navigation, trending, recent]);
+      // Don't pass clips: let VerticalFeedScreen fetch its own paginated list
+    }), [navigation]);
   const goToArtist = useCallback((artist: string) =>
     navigation.navigate('Artist', { artist }), [navigation]);
 
@@ -655,8 +670,22 @@ export default function HomeScreen({ navigation }: any) {
           <Text style={styles.watchFeedArrow}>›</Text>
         </TouchableOpacity>
 
-        {/* HAPPENING NOW — only show if there are current events */}
-        {happeningNowClips.length > 0 && (() => {
+        {/* HAPPENING NOW — show loading state or clips */}
+        {(happeningLoading || happeningNowClips.length > 0) && (() => {
+          if (happeningLoading && happeningNowClips.length === 0) {
+            return (
+              <View style={styles.happeningNowSection}>
+                <View style={styles.happeningNowTitleRow}>
+                  <Animated.View style={[styles.happeningDot, { opacity: pulseAnim }]} />
+                  <Text style={styles.happeningNowTitle}>HAPPENING NOW</Text>
+                </View>
+                <View style={styles.loadingMoreContainer}>
+                  <ActivityIndicator size="small" color="#8B5CF6" />
+                </View>
+              </View>
+            );
+          }
+          if (happeningNowClips.length === 0) return null;
           const happeningClips = happeningNowClips.slice(0, 3);
           // Aggregate clip counts by festival
           const festivalCounts: Record<string, number> = {};

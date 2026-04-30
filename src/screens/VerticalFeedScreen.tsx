@@ -461,6 +461,9 @@ export default function VerticalFeedScreen({ navigation, route }: any) {
   const [visibleIndex, setVisibleIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
 
+  // Use ref for offset to avoid stale closure issues
+  const offsetRef = useRef(0);
+
   const flatListRef = useRef<FlatList<Clip>>(null);
 
   const viewabilityConfig = useRef({
@@ -491,6 +494,7 @@ export default function VerticalFeedScreen({ navigation, route }: any) {
       } else {
         setClips(data);
       }
+      offsetRef.current = data.length;
     } catch (e: any) {
       setError(e?.message ?? 'Failed to load clips');
     } finally {
@@ -506,13 +510,17 @@ export default function VerticalFeedScreen({ navigation, route }: any) {
     }, [loadClips, routeClips])
   );
 
+  // Update offsetRef whenever clips change
+  useEffect(() => {
+    offsetRef.current = clips.length;
+  }, [clips.length]);
+
   // Load more clips when nearing the end
   const loadMoreClips = useCallback(async () => {
     if (loadingMore || loading) return;
     try {
       setLoadingMore(true);
-      const offset = clips.length;
-      const moreClips = await getRecentClips(20, offset);
+      const moreClips = await getRecentClips(20, offsetRef.current);
       // Deduplicate by id
       setClips((prev) => {
         const existingIds = new Set(prev.map((c) => c.id));
@@ -524,7 +532,7 @@ export default function VerticalFeedScreen({ navigation, route }: any) {
     } finally {
       setLoadingMore(false);
     }
-  }, [clips.length, loadingMore, loading]);
+  }, [loadingMore, loading]);
 
   // Scroll to startIndex once clips are available
   useEffect(() => {
@@ -588,7 +596,8 @@ export default function VerticalFeedScreen({ navigation, route }: any) {
         onViewableItemsChanged={onViewableItemsChanged}
         removeClippedSubviews={false}
         maxToRenderPerBatch={3}
-        windowSize={3}
+        initialNumToRender={3}
+        windowSize={7}
         onEndReached={loadMoreClips}
         onEndReachedThreshold={0.5}
         ListFooterComponent={
