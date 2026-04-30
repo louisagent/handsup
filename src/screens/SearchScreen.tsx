@@ -17,7 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Clip, Profile, Event } from '../types';
 import { searchClips, getTrendingArtists } from '../services/clips';
 import { searchProfiles, getSuggestedUsers } from '../services/profiles';
-import { searchArtists, Artist } from '../services/artists';
+import { searchArtists, Artist, getAllArtists } from '../services/artists';
 import { isFollowing, followUser, unfollowUser } from '../services/follows';
 import { SkeletonSearchRow } from '../components/SkeletonCard';
 import { trackEvent } from '../services/analytics';
@@ -317,6 +317,8 @@ export default function SearchScreen({ navigation, route }: any) {
   const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   const [followLoadingMap, setFollowLoadingMap] = useState<Record<string, boolean>>({});
   const [allEvents, setAllEvents] = useState<Event[]>([]);
+  const [allArtists, setAllArtists] = useState<Artist[]>([]);
+  const [allArtistsLoading, setAllArtistsLoading] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autocompleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -336,6 +338,9 @@ export default function SearchScreen({ navigation, route }: any) {
     getSuggestedUsers().then(setSuggestedUsers).catch(() => {});
     // Load events from Supabase
     getEvents().then(setAllEvents).catch(() => {});
+    // Load all artists
+    setAllArtistsLoading(true);
+    getAllArtists().then(setAllArtists).catch(() => {}).finally(() => setAllArtistsLoading(false));
     // If initialQuery was passed (e.g. from hashtag tap), run search immediately
     if (route?.params?.initialQuery) {
       doSearch(route.params.initialQuery, category);
@@ -722,36 +727,89 @@ export default function SearchScreen({ navigation, route }: any) {
         </View>
       )}
 
-      {/* Trending artists (when not searching) */}
-      {!isSearching && trendingArtists.length > 0 && (
-        <View style={styles.trendSection}>
-          <View style={styles.trendTitleRow}>
-            <Text style={styles.trendTitle}>🔥 Trending Artists</Text>
-            <TouchableOpacity
-              style={styles.addArtistBtn}
-              onPress={() => navigation.navigate('AddArtist')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.addArtistBtnText}>Add Artist +</Text>
-            </TouchableOpacity>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.trendRow}
-          >
-            {trendingArtists.map(({ artist }) => (
-              <TouchableOpacity
-                key={artist}
-                style={styles.artistChip}
-                onPress={() => handleArtistChip(artist)}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.artistChipText}>{artist}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+      {/* Browse View - default non-searching state */}
+      {!isSearching && !loading && (
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 100 }}
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Artists Grid */}
+          {(category === 'All' || category === 'Artists') && (
+            <View>
+              <View style={styles.browseSectionHeader}>
+                <Text style={styles.browseSectionTitle}>Artists</Text>
+              </View>
+              {allArtistsLoading ? (
+                <View style={{ padding: 20, alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color="#8B5CF6" />
+                </View>
+              ) : (
+                <FlatList
+                  data={allArtists}
+                  keyExtractor={(item) => item.id}
+                  numColumns={3}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.artistGridCard}
+                      onPress={() => navigation.navigate('ArtistScreen', { artist: item.name })}
+                      activeOpacity={0.8}
+                    >
+                      {item.image_url ? (
+                        <Image source={{ uri: item.image_url }} style={styles.artistGridImage} />
+                      ) : (
+                        <View style={[styles.artistGridImage, styles.artistGridPlaceholder]}>
+                          <Ionicons name="person-outline" size={28} color="#555" />
+                        </View>
+                      )}
+                      <Text style={styles.artistGridName} numberOfLines={2}>{item.name}</Text>
+                    </TouchableOpacity>
+                  )}
+                  scrollEnabled={false}
+                  contentContainerStyle={styles.artistGrid}
+                />
+              )}
+            </View>
+          )}
+
+          {/* Festivals List */}
+          {(category === 'All' || category === 'Festivals') && sortedFestivals.length > 0 && (
+            <View>
+              <View style={styles.browseSectionHeader}>
+                <Text style={styles.browseSectionTitle}>Festivals</Text>
+              </View>
+              <View style={festivalStyles.listContainer}>
+                {sortedFestivals.map((item) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={festivalStyles.card}
+                    onPress={() => navigation.navigate('EventDetail', { event: item })}
+                    activeOpacity={0.85}
+                  >
+                    {item.image_url ? (
+                      <Image source={{ uri: item.image_url }} style={festivalStyles.image} />
+                    ) : (
+                      <View style={[festivalStyles.image, { backgroundColor: '#1a1a2e' }]} />
+                    )}
+                    {item.is_private && (
+                      <View style={festivalStyles.privateBadge}>
+                        <Text style={festivalStyles.privateBadgeText}>🔒</Text>
+                      </View>
+                    )}
+                    <View style={festivalStyles.info}>
+                      <Text style={festivalStyles.name}>{item.name}</Text>
+                      <Text style={festivalStyles.location}>📍 {item.city}, {item.country}</Text>
+                    </View>
+                    <View style={festivalStyles.clips}>
+                      <Text style={festivalStyles.clipsCount}>{item.clip_count}</Text>
+                      <Text style={festivalStyles.clipsLabel}>clips</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+        </ScrollView>
       )}
 
       {loading && (
@@ -763,69 +821,7 @@ export default function SearchScreen({ navigation, route }: any) {
         </View>
       )}
 
-      {!loading && !searched && category === 'Festivals' && (
-        <FlatList
-          data={sortedFestivals}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => {
-            return (
-              <TouchableOpacity
-                style={festivalStyles.card}
-                onPress={() => navigation.navigate('EventDetail', { event: item })}
-                activeOpacity={0.85}
-              >
-                {item.image_url ? (
-                  <Image source={{ uri: item.image_url }} style={festivalStyles.image} />
-                ) : (
-                  <View style={[festivalStyles.image, { backgroundColor: '#1a1a2e' }]} />
-                )}
-                {item.is_private && (
-                  <View style={festivalStyles.privateBadge}>
-                    <Text style={festivalStyles.privateBadgeText}>🔒</Text>
-                  </View>
-                )}
-                <View style={festivalStyles.info}>
-                  <Text style={festivalStyles.name}>{item.name}</Text>
-                  <Text style={festivalStyles.location}>📍 {item.city}, {item.country}</Text>
-                </View>
-                <View style={festivalStyles.clips}>
-                  <Text style={festivalStyles.clipsCount}>{item.clip_count}</Text>
-                  <Text style={festivalStyles.clipsLabel}>clips</Text>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-          contentContainerStyle={styles.list}
-          keyboardDismissMode="on-drag"
-        />
-      )}
 
-      {!loading && !searched && category !== 'Festivals' && suggestedUsers.length > 0 && (
-        <ScrollView
-          contentContainerStyle={styles.list}
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={suggestStyles.section}>
-            <Text style={suggestStyles.sectionTitle}>👥 People to Follow</Text>
-            {suggestedUsers.map((user) => (
-              <SuggestedUserCard
-                key={user.id}
-                profile={user}
-                isFollowing={!!followingMap[user.id]}
-                isLoading={!!followLoadingMap[user.id]}
-                onFollow={() => handleFollowSuggested(user.id)}
-              />
-            ))}
-          </View>
-        </ScrollView>
-      )}
-
-      {!loading && !searched && category !== 'Festivals' && suggestedUsers.length === 0 && (
-        <View style={styles.hint}>
-          <Text style={styles.hintText}>🔍 Try "Tame Impala", "Melbourne", or "@username"</Text>
-        </View>
-      )}
 
       {!loading && searched && error && (
         <View style={styles.hint}>
@@ -1149,9 +1145,21 @@ const styles = StyleSheet.create({
   artistInfo: { flex: 1 },
   artistName: { fontSize: 16, fontWeight: '700', color: '#fff' },
   artistGenre: { fontSize: 12, color: '#8B5CF6', marginTop: 2 },
+  // Browse view (default non-searching state)
+  browseSectionHeader: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 8 },
+  browseSectionTitle: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  artistGridCard: { flex: 1, alignItems: 'center', padding: 8, maxWidth: '33.3%' },
+  artistGridImage: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#1a1a1a', marginBottom: 6, overflow: 'hidden' as const },
+  artistGridPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  artistGridName: { fontSize: 11, color: '#ccc', textAlign: 'center', fontWeight: '600' },
+  artistGrid: { paddingHorizontal: 8 },
 });
 
 const festivalStyles = StyleSheet.create({
+  listContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
   card: {
     flexDirection: 'row',
     backgroundColor: '#161616',
