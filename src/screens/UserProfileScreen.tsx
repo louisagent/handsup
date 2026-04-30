@@ -20,6 +20,7 @@ import { isFollowing, followUser, unfollowUser, getFollowCounts } from '../servi
 import { getMutedUserIds, muteUser, unmuteUser } from '../services/mutedUsers';
 import { isModerator, banUser, isUserBanned } from '../services/moderator';
 import { supabase } from '../services/supabase';
+import { getOrCreateConversation } from '../services/messages';
 import { SkeletonCard } from '../components/SkeletonCard';
 import { getUserAttendedEvents } from '../services/attendance';
 
@@ -239,21 +240,47 @@ export default function UserProfileScreen({ route, navigation }: any) {
             <Text style={styles.bio}>{profile.bio}</Text>
           ) : null}
 
-          {/* Follow button */}
-          <TouchableOpacity
-            style={[styles.followBtn, following && styles.followingBtn]}
-            onPress={handleFollowToggle}
-            disabled={followLoading}
-            activeOpacity={0.85}
-          >
-            {followLoading ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.followBtnText}>
-                {following ? '✓ Following' : 'Follow'}
-              </Text>
-            )}
-          </TouchableOpacity>
+          {/* Buttons */}
+          {currentUserId !== userId && (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.followBtn, following && styles.followingBtn]}
+                onPress={handleFollowToggle}
+                disabled={followLoading}
+                activeOpacity={0.85}
+              >
+                {followLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.followBtnText}>
+                    {following ? '✓ Following' : 'Follow'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.messageBtn}
+                onPress={async () => {
+                  try {
+                    const conversationId = await getOrCreateConversation(userId);
+                    navigation.navigate('Conversation', {
+                      conversationId,
+                      otherUser: {
+                        id: userId,
+                        username: profile.username,
+                        avatar_url: profile.avatar_url,
+                      },
+                    });
+                  } catch (error) {
+                    console.error('Failed to open conversation:', error);
+                  }
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="mail-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Mute button — hidden on own profile */}
           {currentUserId !== userId && (
@@ -495,8 +522,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingHorizontal: 8,
   },
-  followBtn: {
+  actionButtons: {
+    flexDirection: 'row',
     marginTop: 16,
+    gap: 12,
+    alignItems: 'center',
+  },
+  followBtn: {
+    flex: 1,
     backgroundColor: '#8B5CF6',
     paddingHorizontal: 40,
     paddingVertical: 12,
@@ -510,6 +543,16 @@ const styles = StyleSheet.create({
     borderColor: '#8B5CF6',
   },
   followBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  messageBtn: {
+    backgroundColor: '#2a2a2a',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#3a3a3a',
+  },
   muteBtn: {
     marginTop: 8,
     backgroundColor: '#2a2a2a',

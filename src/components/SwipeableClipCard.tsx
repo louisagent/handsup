@@ -364,7 +364,7 @@ const styles = StyleSheet.create({
     // No border — card-less card look
   },
   thumbnailContainer: { position: 'relative' },
-  thumbnail: { width: '100%', height: 200, backgroundColor: '#161616' },
+  thumbnail: { width: '100%', aspectRatio: 9/16, backgroundColor: '#161616' },
   placeholderThumb: { backgroundColor: '#2a2a2a' },
   durationBadge: {
     position: 'absolute',

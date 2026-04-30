@@ -23,6 +23,8 @@ import { supabase } from '../services/supabase';
 import NotificationsScreen from './NotificationsScreen';
 import LeaderboardScreen from './LeaderboardScreen';
 import { getIncomingCrewRequests, respondToCrewRequest, CrewRequest } from '../services/crewFinder';
+import { getUnreadMessageCount } from '../services/messages';
+import { useFocusEffect } from '@react-navigation/native';
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -409,6 +411,7 @@ function FollowingFeedTab({ navigation }: { navigation: any }) {
 
 export default function ActivityScreen({ navigation }: any) {
   const [activeTab, setActiveTab] = useState<Tab>('you');
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'you', label: 'You' },
@@ -416,8 +419,44 @@ export default function ActivityScreen({ navigation }: any) {
     { key: 'leaderboard', label: 'Leaderboard' },
   ];
 
+  const loadUnreadMessages = async () => {
+    try {
+      const count = await getUnreadMessageCount();
+      setUnreadMessages(count);
+    } catch (error) {
+      console.error('Failed to load unread messages:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadUnreadMessages();
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUnreadMessages();
+    }, [])
+  );
+
   return (
     <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Activity</Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Inbox')}
+          style={styles.messageButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="mail-outline" size={24} color="#fff" />
+          {unreadMessages > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
       {/* Tab Pills */}
       <View style={styles.pillBar}>
         {tabs.map(({ key, label }) => (
@@ -450,6 +489,43 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+
+  // ── Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 8,
+    backgroundColor: '#000000',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  messageButton: {
+    position: 'relative',
+    padding: 8,
+  },
+  badge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
   },
 
   // ── Pill bar

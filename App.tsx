@@ -54,6 +54,8 @@ import CrewFinderScreen from './src/screens/CrewFinderScreen';
 import ArtistClaimScreen from './src/screens/ArtistClaimScreen';
 import LineupAdminScreen from './src/screens/LineupAdminScreen';
 import AddArtistScreen from './src/screens/AddArtistScreen';
+import InboxScreen from './src/screens/InboxScreen';
+import ConversationScreen from './src/screens/ConversationScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -449,6 +451,16 @@ export default function App() {
           name="Report"
           component={ReportScreen}
           options={{ title: 'Report Clip', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="Inbox"
+          component={InboxScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Conversation"
+          component={ConversationScreen}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="Settings"
