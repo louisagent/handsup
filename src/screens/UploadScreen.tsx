@@ -225,8 +225,10 @@ export default function UploadScreen({ route }: any) {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
       quality: 1,
-      // No max duration — we handle trimming ourselves
+      videoMaxDuration: 60,
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
     });
     if (!result.canceled && result.assets.length > 0) {
       const asset = result.assets[0];

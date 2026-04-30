@@ -447,6 +447,7 @@ export default function VerticalFeedScreen({ navigation, route }: any) {
     routeClips ? routeClips.filter((c, idx, arr) => arr.findIndex(x => x.id === c.id) === idx) : []
   );
   const [loading, setLoading] = useState(!routeClips);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visibleIndex, setVisibleIndex] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -495,6 +496,26 @@ export default function VerticalFeedScreen({ navigation, route }: any) {
       return () => {};
     }, [loadClips, routeClips])
   );
+
+  // Load more clips when nearing the end
+  const loadMoreClips = useCallback(async () => {
+    if (loadingMore || loading) return;
+    try {
+      setLoadingMore(true);
+      const offset = clips.length;
+      const moreClips = await getRecentClips(20, offset);
+      // Deduplicate by id
+      setClips((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+        const newClips = moreClips.filter((c) => !existingIds.has(c.id));
+        return [...prev, ...newClips];
+      });
+    } catch (e) {
+      // Silent fail for infinite scroll
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [clips.length, loadingMore, loading]);
 
   // Scroll to startIndex once clips are available
   useEffect(() => {
@@ -556,9 +577,18 @@ export default function VerticalFeedScreen({ navigation, route }: any) {
         showsVerticalScrollIndicator={false}
         viewabilityConfig={viewabilityConfig}
         onViewableItemsChanged={onViewableItemsChanged}
-        removeClippedSubviews={true}
+        removeClippedSubviews={false}
         maxToRenderPerBatch={3}
         windowSize={3}
+        onEndReached={loadMoreClips}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.loadingMore}>
+              <ActivityIndicator size="small" color="#8B5CF6" />
+            </View>
+          ) : null
+        }
         onScrollToIndexFailed={(info) => {
           // Gracefully handle scroll-to-index failures
           setTimeout(() => {
@@ -616,6 +646,11 @@ const styles = StyleSheet.create({
   retryText: { color: '#8B5CF6', fontWeight: '700' },
   emptyText: { color: '#888', fontSize: 20, fontWeight: '700', marginTop: 16 },
   emptySubText: { color: '#555', fontSize: 14 },
+  loadingMore: {
+    height: screenHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   // Feed item
   itemContainer: {

@@ -104,6 +104,16 @@ export function xpForLevel(level: number): number {
   return thresholds[Math.min(level, 10)] ?? 10000;
 }
 
+// Derive level from XP (using thresholds)
+export function levelFromXp(xp: number): number {
+  const thresholds = [0, 0, 100, 300, 600, 1000, 1500, 2500, 4000, 6000, 10000];
+  let level = 1;
+  for (let i = thresholds.length - 1; i >= 1; i--) {
+    if (xp >= thresholds[i]) { level = i; break; }
+  }
+  return level;
+}
+
 export function levelProgress(xp: number, level: number): number {
   const current = xpForLevel(level);
   const next = xpForLevel(level + 1);

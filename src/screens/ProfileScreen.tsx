@@ -25,7 +25,7 @@ import { getCurrentProfile, getMyUploads } from '../services/auth';
 import { getFollowCounts } from '../services/follows';
 import { pinClip, unpinClip } from '../services/profiles';
 import { supabase } from '../services/supabase';
-import { getUserBadges, BADGES, xpForLevel, levelProgress } from '../services/xp';
+import { getUserBadges, BADGES, xpForLevel, levelProgress, levelFromXp } from '../services/xp';
 import { getStreakInfo } from '../services/streaks';
 import { getUserAttendedEvents } from '../services/attendance';
 import { Profile, Clip } from '../types';
@@ -472,12 +472,11 @@ export default function ProfileScreen({ navigation }: any) {
         {/* ── Level + XP bar ── */}
         <View style={styles.xpSection}>
           <View style={styles.xpHeader}>
-            <Text style={styles.levelBadge}>Lv.{level}</Text>
-            <Text style={styles.xpText}>{xp.toLocaleString()} XP</Text>
-            <Text style={styles.nextLevelText}>→ {xpForLevel(level + 1).toLocaleString()} XP</Text>
+            <Text style={styles.levelBadge}>Lv.{levelFromXp(xp)}</Text>
+            <Text style={styles.xpText}>{xp.toLocaleString()} / {xpForLevel(levelFromXp(xp) + 1).toLocaleString()} XP</Text>
           </View>
           <View style={styles.xpTrack}>
-            <View style={[styles.xpFill, { width: `${levelProgress(xp, level) * 100}%` as any }]} />
+            <View style={[styles.xpFill, { width: `${levelProgress(xp, levelFromXp(xp)) * 100}%` as any }]} />
           </View>
         </View>
 
@@ -498,60 +497,47 @@ export default function ProfileScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* ── YOUR FESTIVALS ── */}
-      {clips.length > 0 && (() => {
-        const festivalMap: Record<string, string> = {};
+      {/* ── FESTIVALS (merged with attended) ── */}
+      {(() => {
+        // Build festival map from clips
+        const festivalMap: Record<string, { year: string; hasClip: boolean }> = {};
         clips.forEach((c) => {
           if (c.festival_name) {
             const year = c.clip_date ? new Date(c.clip_date).getFullYear().toString() : '';
-            if (!festivalMap[c.festival_name]) festivalMap[c.festival_name] = year;
+            if (!festivalMap[c.festival_name]) {
+              festivalMap[c.festival_name] = { year, hasClip: true };
+            }
+          }
+        });
+        // Merge attended events (only add if not already in map)
+        attendedEvents.forEach((a) => {
+          const name = a.event?.name;
+          if (name && !festivalMap[name]) {
+            const year = a.event?.start_date ? new Date(a.event.start_date).getFullYear().toString() : '';
+            festivalMap[name] = { year, hasClip: false };
           }
         });
         const festivalEntries = Object.entries(festivalMap);
         if (festivalEntries.length === 0) return null;
         return (
           <View style={styles.festivalsSection}>
-            <Text style={styles.sectionTitle}>YOUR FESTIVALS</Text>
+            <Text style={styles.sectionTitle}>FESTIVALS</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.festivalBadgeRow}
             >
-              {festivalEntries.map(([fest, year]) => (
+              {festivalEntries.map(([fest, info]) => (
                 <View key={fest} style={styles.festivalBadge}>
                   <Text style={styles.festivalBadgeIcon}>📍</Text>
                   <Text style={styles.festivalBadgeName} numberOfLines={2}>{fest}</Text>
-                  {year ? <Text style={styles.festivalBadgeYear}>{year}</Text> : null}
+                  {info.year ? <Text style={styles.festivalBadgeYear}>{info.year}</Text> : null}
                 </View>
               ))}
             </ScrollView>
           </View>
         );
       })()}
-
-      {/* ── ATTENDED (I Was There) ── */}
-      {attendedEvents.length > 0 && (
-        <View style={styles.attendedSection}>
-          <Text style={styles.attendedTitle}>ATTENDED</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.attendedRow}
-          >
-            {attendedEvents.map((a) => (
-              <View key={a.event_id} style={styles.attendedBadge}>
-                <Text style={styles.attendedBadgeIcon}>📍</Text>
-                <Text style={styles.attendedBadgeName} numberOfLines={2}>{a.event?.name}</Text>
-                {a.event?.start_date && (
-                  <Text style={styles.attendedBadgeYear}>
-                    {new Date(a.event.start_date).getFullYear()}
-                  </Text>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-      )}
 
       {/* ── Badges ── */}
       {badges.length > 0 && (
