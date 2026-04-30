@@ -115,7 +115,7 @@ export default function VerificationApplicationScreen({ navigation }: any) {
       style={{ flex: 1, backgroundColor: '#000' }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Header */}
         <View style={styles.headerSection}>
           <Ionicons name="shield-checkmark-outline" size={48} color="#8B5CF6" />

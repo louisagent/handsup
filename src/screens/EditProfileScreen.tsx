@@ -3,7 +3,7 @@
 // Black bg, purple accents, dark input fields
 // ============================================================
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -50,6 +50,11 @@ export default function EditProfileScreen({ navigation }: any) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [supportUrl, setSupportUrl] = useState('');
 
+  // Username availability check
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
+  const usernameCheckTimeout = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     (async () => {
       try {
@@ -73,6 +78,52 @@ export default function EditProfileScreen({ navigation }: any) {
       }
     })();
   }, []);
+
+  // Debounced username availability check
+  useEffect(() => {
+    // Clear previous timeout
+    if (usernameCheckTimeout.current) {
+      clearTimeout(usernameCheckTimeout.current);
+    }
+
+    // Skip check if username is empty or unchanged from profile
+    if (!username || username === profile?.username) {
+      setUsernameAvailable(null);
+      setCheckingUsername(false);
+      return;
+    }
+
+    // Debounce: wait 500ms after user stops typing
+    setCheckingUsername(true);
+    usernameCheckTimeout.current = setTimeout(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setUsernameAvailable(null);
+          setCheckingUsername(false);
+          return;
+        }
+
+        const { count } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('username', username.toLowerCase())
+          .neq('id', user.id);
+
+        setUsernameAvailable(count === 0);
+      } catch {
+        setUsernameAvailable(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+
+    return () => {
+      if (usernameCheckTimeout.current) {
+        clearTimeout(usernameCheckTimeout.current);
+      }
+    };
+  }, [username, profile?.username]);
 
   // ── Shared upload logic ───────────────────────────────────
 
@@ -175,6 +226,10 @@ export default function EditProfileScreen({ navigation }: any) {
       Alert.alert('Required', 'Username cannot be empty.');
       return;
     }
+    if (usernameAvailable === false) {
+      Alert.alert('Username Taken', 'This username is already taken. Please choose another.');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -271,7 +326,22 @@ export default function EditProfileScreen({ navigation }: any) {
               autoCorrect={false}
               returnKeyType="next"
             />
+            {checkingUsername && (
+              <ActivityIndicator size="small" color="#8B5CF6" style={styles.usernameIndicator} />
+            )}
+            {!checkingUsername && usernameAvailable === true && (
+              <Text style={[styles.usernameIndicator, styles.usernameAvailableIcon]}>✓</Text>
+            )}
+            {!checkingUsername && usernameAvailable === false && (
+              <Text style={[styles.usernameIndicator, styles.usernameTakenIcon]}>✕</Text>
+            )}
           </View>
+          {usernameAvailable === true && (
+            <Text style={styles.usernameAvailableText}>✓ Username available</Text>
+          )}
+          {usernameAvailable === false && (
+            <Text style={styles.usernameTakenText}>✕ Username already taken</Text>
+          )}
         </View>
 
         <View style={styles.fieldGroup}>
@@ -449,6 +519,31 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
     paddingLeft: 0,
+  },
+  usernameIndicator: {
+    marginRight: 14,
+  },
+  usernameAvailableIcon: {
+    color: '#4ade80',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  usernameTakenIcon: {
+    color: '#EF4444',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  usernameAvailableText: {
+    fontSize: 12,
+    color: '#4ade80',
+    marginTop: 5,
+    fontWeight: '600',
+  },
+  usernameTakenText: {
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 5,
+    fontWeight: '600',
   },
   bioHeader: {
     flexDirection: 'row',

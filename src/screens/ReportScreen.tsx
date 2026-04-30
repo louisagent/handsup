@@ -74,7 +74,7 @@ export default function ReportScreen({ route, navigation }: any) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.pageTitle}>Report Clip</Text>
       <Text style={styles.pageSubtitle}>Help keep Handsup safe. Select a reason below.</Text>
 

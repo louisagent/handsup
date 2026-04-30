@@ -4,7 +4,7 @@
 // Uses React Native Animated + PanResponder (no extra deps).
 // ============================================================
 
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import {
   Animated,
   PanResponder,
@@ -16,6 +16,7 @@ import {
   Share,
   Platform,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { Clip } from '../types';
 
@@ -29,6 +30,7 @@ interface Props {
   onPress: () => void;
   onArtistPress: () => void;
   onLongPress: () => void;
+  autoPlay?: boolean; // Auto-play muted video preview when true
 }
 
 export const SwipeableClipCard: React.FC<Props> = ({
@@ -38,11 +40,25 @@ export const SwipeableClipCard: React.FC<Props> = ({
   onPress,
   onArtistPress,
   onLongPress,
+  autoPlay = false,
 }) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const isOpen = useRef(false);
   const isSwiping = useRef(false);
   const dragStart = useRef(0);
+  const videoRef = useRef<Video>(null);
+  const [showVideo, setShowVideo] = useState(false);
+
+  // Auto-play muted video when autoPlay is true
+  useEffect(() => {
+    if (autoPlay && videoRef.current) {
+      videoRef.current.playAsync().catch(() => {});
+      setShowVideo(true);
+    } else if (!autoPlay && videoRef.current) {
+      videoRef.current.pauseAsync().catch(() => {});
+      setShowVideo(false);
+    }
+  }, [autoPlay]);
 
   const snapToOpen = useCallback(() => {
     isOpen.current = true;
@@ -199,7 +215,17 @@ export const SwipeableClipCard: React.FC<Props> = ({
         >
           {/* Thumbnail — full width, no margin */}
           <View style={styles.thumbnailContainer}>
-            {video.thumbnail_url ? (
+            {showVideo && autoPlay && video.video_url ? (
+              <Video
+                ref={videoRef}
+                source={{ uri: video.video_url }}
+                style={styles.thumbnail}
+                resizeMode={ResizeMode.COVER}
+                isLooping
+                isMuted
+                shouldPlay={autoPlay}
+              />
+            ) : video.thumbnail_url ? (
               <Image source={{ uri: video.thumbnail_url }} style={styles.thumbnail} />
             ) : (
               <View style={[styles.thumbnail, styles.placeholderThumb]} />

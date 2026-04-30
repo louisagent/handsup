@@ -17,13 +17,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.zacgibson.handsuplive",
       "buildNumber": "1",
-
       "infoPlist": {
         "NSCameraUsageDescription": "handsup needs camera access to record festival clips.",
         "NSPhotoLibraryUsageDescription": "handsup needs access to your photo library to select videos.",
         "NSPhotoLibraryAddUsageDescription": "handsup saves festival clips to your camera roll.",
         "NSMicrophoneUsageDescription": "handsup needs microphone access to record festival clips with audio.",
-        "NSLocationWhenInUseUsageDescription": "handsup uses your location to show nearby festivals."
+        "NSLocationWhenInUseUsageDescription": "handsup uses your location to show nearby festivals.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -40,7 +40,10 @@
               "pathPrefix": "/clip"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "adaptiveIcon": {
@@ -55,7 +58,11 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_AUDIO"
       ]
     },
     "web": {
@@ -79,6 +86,11 @@
           "isAccessMediaLocationEnabled": true
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d8b55617-a745-4060-8638-c2fc36082c29"
+      }
+    }
   }
 }

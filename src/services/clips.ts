@@ -6,6 +6,7 @@
 
 import { supabase } from './supabase';
 import { Clip, SearchParams } from '../types';
+import { getSignedUrl as getCachedSignedUrl } from './storageCache';
 
 // Get recent clips for home feed
 export async function getRecentClips(limit = 20, offset = 0): Promise<Clip[]> {
@@ -455,15 +456,11 @@ export async function getClipCountForSet(artist: string, festivalName: string): 
 // ── Signed URL helpers (private clips bucket) ──────────────
 
 /**
- * Generate a fresh signed URL for a given storage path.
+ * Generate a signed URL for a given storage path (uses cache).
  * Path should be relative to the clips bucket, e.g. "user-id/filename.mp4"
  */
 export async function getSignedUrl(path: string, expiresInSeconds = 60 * 60 * 24 * 7): Promise<string | null> {
-  const { data, error } = await supabase.storage
-    .from('clips')
-    .createSignedUrl(path, expiresInSeconds);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  return getCachedSignedUrl('clips', path, expiresInSeconds);
 }
 
 /**

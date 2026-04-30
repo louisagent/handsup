@@ -40,6 +40,13 @@ function getInitials(name?: string, username?: string): string {
 // ── Sub-components ─────────────────────────────────────────
 
 function AvatarCircle({ profile }: { profile: Profile | null }) {
+  if (profile?.avatar_url) {
+    return (
+      <View style={avatarStyles.circle}>
+        <Image source={{ uri: profile.avatar_url }} style={avatarStyles.avatarImage} />
+      </View>
+    );
+  }
   return (
     <View style={avatarStyles.circle}>
       <Text style={avatarStyles.initials}>
@@ -65,12 +72,18 @@ const avatarStyles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 10,
     marginBottom: 14,
+    overflow: 'hidden',
   },
   initials: {
     fontSize: 34,
     fontWeight: '800',
     color: '#fff',
     letterSpacing: 1,
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 48,
   },
 });
 

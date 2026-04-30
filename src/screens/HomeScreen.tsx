@@ -366,7 +366,7 @@ export default function HomeScreen({ navigation }: any) {
     </View>
   );
 
-  const renderClipCard = (video: Clip & { reposted_by?: string }, keyPrefix = '') => (
+  const renderClipCard = (video: Clip & { reposted_by?: string }, keyPrefix = '', index = 0) => (
     <View key={`${keyPrefix}${video.id}`}>
       {video.reposted_by && (
         <View style={styles.repostHeader}>
@@ -381,6 +381,7 @@ export default function HomeScreen({ navigation }: any) {
         onPress={() => goToVideo(video)}
         onArtistPress={() => goToArtist(video.artist)}
         onLongPress={() => handleLongPress(video)}
+        autoPlay={feedTab === 'forYou' && index === 0}
       />
     </View>
   );
@@ -770,7 +771,7 @@ export default function HomeScreen({ navigation }: any) {
                   <Text style={styles.emptyText}>0 clips. You're early. Set the tone 🔥</Text>
                 )
               ) : (
-                forYouClips.map((v) => renderClipCard(v, 'foryou-'))
+                forYouClips.map((v, i) => renderClipCard(v, 'foryou-', i))
               )}
             </View>
           </>
