@@ -54,7 +54,7 @@ export function SkeletonCard() {
 }
 
 // ---------------------------------------------------------------------------
-// SkeletonTrendCard — mimics the horizontal trending strip card (200×140)
+// SkeletonTrendCard — mimics the horizontal trending strip card (110×195 portrait)
 // ---------------------------------------------------------------------------
 export function SkeletonTrendCard() {
   const opacity = useShimmer();
@@ -138,24 +138,25 @@ const styles = StyleSheet.create({
 
   // ---- SkeletonTrendCard ----
   trendCard: {
-    width: 200,
-    borderRadius: 14,
+    width: 110,
+    borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: SKELETON_BG,
     gap: 8,
-    paddingBottom: 10,
+    paddingBottom: 8,
+    marginRight: 10,
   },
   trendThumb: {
-    width: 200,
-    height: 140,
+    width: 110,
+    height: 195, // 9:16 portrait aspect ratio
     backgroundColor: SKELETON_BG,
   },
   trendLine: {
-    height: 12,
-    borderRadius: 6,
+    height: 10,
+    borderRadius: 5,
     backgroundColor: '#252525',
-    marginHorizontal: 10,
-    width: '60%',
+    marginHorizontal: 8,
+    width: '70%',
   },
 
   // ---- SkeletonSearchRow ----
