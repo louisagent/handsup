@@ -29,7 +29,25 @@ All critical tables are **already deployed**. No blocking migrations pending.
 
 ## ⚠️ Required Migrations for New Features
 
-### 1. Clip Reactions Table (Feature 4)
+### 1. Voice Comments Storage Bucket & Column (Feature 4 - Voice Comments)
+**Status:** Required for voice comments feature
+
+```sql
+-- 1. Create storage bucket for voice comments (run in Supabase Dashboard → Storage)
+-- Bucket name: 'voice-comments'
+-- Public: true (or use signed URLs)
+-- File size limit: 5MB
+-- Allowed MIME types: audio/m4a, audio/mpeg, audio/webm
+
+-- 2. Add audio_url column to comments table
+ALTER TABLE public.comments
+  ADD COLUMN IF NOT EXISTS audio_url TEXT;
+
+-- 3. Add index for voice comment queries
+CREATE INDEX IF NOT EXISTS comments_audio_url_idx ON public.comments(audio_url) WHERE audio_url IS NOT NULL;
+```
+
+### 2. Clip Reactions Table (Feature 4)
 **Status:** Required for clip reactions feature
 
 ```sql

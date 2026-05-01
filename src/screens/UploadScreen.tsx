@@ -34,6 +34,7 @@ import { notifyFollowersOfNewClip } from '../services/notifications';
 import { createArtistIfNotExists } from '../services/artists';
 import { splitByHashtags } from '../utils/tags';
 import { detectTrackForClip } from '../services/acrcloud';
+import { extractVideoMetadata, type VideoMetadata } from '../services/videoMetadata';
 
 const LAST_EVENT_KEY = 'handsup_last_upload_event';
 
@@ -95,6 +96,10 @@ export default function UploadScreen({ route }: any) {
   // ── B2B artist support (Feature 3)
   const [b2bArtists, setB2bArtists] = useState<string[]>([]);
   const [b2bSuggestions, setB2bSuggestions] = useState<{ [index: number]: string[] }>({});
+  
+  // ── Auto-tagging from metadata (NEW Feature)
+  const [metadataSuggestions, setMetadataSuggestions] = useState<VideoMetadata | null>(null);
+  const [showMetadataBanner, setShowMetadataBanner] = useState(false);
 
   // ── Step / flow
   const [step, setStep] = useState<1 | 2>(1);
@@ -285,10 +290,39 @@ export default function UploadScreen({ route }: any) {
   // A video is too long only if we haven't trimmed it
   const videoTooLong = videoDuration !== null && videoDuration > MAX_VIDEO_DURATION_SECONDS && !trimApplied;
 
-  const initVideoAsset = (uri: string, durationMs: number | null) => {
+  const initVideoAsset = async (uri: string, durationMs: number | null, filename?: string) => {
     setVideoUri(uri);
     const durationSecs = durationMs != null ? Math.round(durationMs / 1000) : null;
     setVideoDuration(durationSecs);
+    
+    // Extract metadata from video (NEW Feature)
+    try {
+      const metadata = await extractVideoMetadata(uri, filename);
+      if (metadata) {
+        setMetadataSuggestions(metadata);
+        setShowMetadataBanner(true);
+        
+        // Auto-apply suggested artist if available
+        if (metadata.suggestedArtist && !artist) {
+          setArtist(metadata.suggestedArtist);
+        }
+        
+        // Auto-apply suggested location if available
+        if (metadata.location?.city && !location) {
+          setLocation(metadata.location.city);
+          setLocationAutoFilled(true);
+        }
+        
+        // Auto-apply suggested date if available
+        if (metadata.suggestedDate) {
+          setDate(metadata.suggestedDate);
+          setDateAutoFilled(true);
+        }
+      }
+    } catch (error) {
+      console.warn('[UploadScreen] Failed to extract metadata:', error);
+    }
+    
     // If video > 60s, open trimmer
     if (durationSecs != null && durationSecs > MAX_VIDEO_DURATION_SECONDS) {
       const durMs = durationMs ?? durationSecs * 1000;
@@ -317,7 +351,8 @@ export default function UploadScreen({ route }: any) {
     });
     if (!result.canceled && result.assets.length > 0) {
       const asset = result.assets[0];
-      initVideoAsset(asset.uri, asset.duration ?? null);
+      const filename = asset.fileName ?? asset.uri.split('/').pop() ?? undefined;
+      initVideoAsset(asset.uri, asset.duration ?? null, filename);
     }
   };
 
@@ -333,7 +368,8 @@ export default function UploadScreen({ route }: any) {
     });
     if (!result.canceled && result.assets.length > 0) {
       const asset = result.assets[0];
-      initVideoAsset(asset.uri, asset.duration ?? null);
+      const filename = asset.fileName ?? asset.uri.split('/').pop() ?? undefined;
+      initVideoAsset(asset.uri, asset.duration ?? null, filename);
     }
   };
 
@@ -961,6 +997,41 @@ export default function UploadScreen({ route }: any) {
       )}
 
       <View style={styles.form}>
+        {/* Metadata suggestions banner (NEW Feature) */}
+        {showMetadataBanner && metadataSuggestions && (
+          <View style={styles.metadataBanner}>
+            <View style={styles.metadataHeader}>
+              <Text style={styles.metadataTitle}>✨ Auto-detected tags</Text>
+              <TouchableOpacity onPress={() => setShowMetadataBanner(false)} activeOpacity={0.7}>
+                <Text style={styles.metadataDismiss}>×</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.metadataContent}>
+              {metadataSuggestions.suggestedArtist && (
+                <View style={styles.metadataChip}>
+                  <Text style={styles.metadataChipLabel}>Artist:</Text>
+                  <Text style={styles.metadataChipValue}>{metadataSuggestions.suggestedArtist}</Text>
+                </View>
+              )}
+              {metadataSuggestions.location?.city && (
+                <View style={styles.metadataChip}>
+                  <Text style={styles.metadataChipLabel}>Location:</Text>
+                  <Text style={styles.metadataChipValue}>{metadataSuggestions.location.city}</Text>
+                </View>
+              )}
+              {metadataSuggestions.suggestedDate && (
+                <View style={styles.metadataChip}>
+                  <Text style={styles.metadataChipLabel}>Date:</Text>
+                  <Text style={styles.metadataChipValue}>
+                    {metadataSuggestions.suggestedDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.metadataNote}>Auto-filled from video metadata</Text>
+          </View>
+        )}
+        
         {/* Quick Mode toggle */}
         <View style={styles.quickModeRow}>
           <View style={styles.quickModeLeft}>
@@ -2172,5 +2243,65 @@ const styles = StyleSheet.create({
     color: '#8B5CF6',
     fontSize: 13,
     fontWeight: '700',
+  },
+  
+  // Metadata suggestions banner (NEW Feature)
+  metadataBanner: {
+    backgroundColor: '#0f1419',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#8B5CF633',
+  },
+  metadataHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  metadataTitle: {
+    color: '#8B5CF6',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  metadataDismiss: {
+    color: '#666',
+    fontSize: 20,
+    fontWeight: '400',
+    lineHeight: 22,
+    paddingHorizontal: 4,
+  },
+  metadataContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  metadataChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1a1228',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#8B5CF622',
+  },
+  metadataChipLabel: {
+    color: '#666',
+    fontSize: 11,
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  metadataChipValue: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  metadataNote: {
+    color: '#555',
+    fontSize: 10,
+    fontStyle: 'italic',
   },
 });
