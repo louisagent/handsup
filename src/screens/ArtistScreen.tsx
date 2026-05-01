@@ -519,7 +519,7 @@ export default function ArtistScreen({ route, navigation }: any) {
         {/* 🎪 Playing at — upcoming festival appearances */}
         {upcomingGigs.length > 0 && (
           <View style={styles.gigsSection}>
-            <Text style={styles.gigsSectionTitle}>🎪 Playing at</Text>
+            <Text style={styles.gigsSectionTitle}>Playing at</Text>
             {upcomingGigs.map((gig) => (
               <TouchableOpacity
                 key={gig.id}
@@ -603,7 +603,7 @@ export default function ArtistScreen({ route, navigation }: any) {
               <View style={styles.empty}>
                 <Text style={styles.emptyEmoji}>🎤</Text>
                 <Text style={styles.emptyText}>No clips of {artist} yet.</Text>
-                <Text style={styles.emptySubText}>Been to one of their shows? Upload the first one. 🎤</Text>
+                <Text style={styles.emptySubText}>Been to one of their shows? Upload the first one.</Text>
                 <TouchableOpacity
                   style={styles.addArtistBtn}
                   onPress={() => navigation.navigate('AddArtist', { artistName: artist })}

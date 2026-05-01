@@ -150,7 +150,7 @@ export default function GroupsScreen({ navigation }: Props) {
               <View style={styles.emptyBox}>
                 <Ionicons name="people-outline" size={36} color="#333" />
                 <Text style={styles.emptyText}>No groups yet.</Text>
-                <Text style={styles.emptySubText}>Go to a festival with friends and create one. 🎪</Text>
+                <Text style={styles.emptySubText}>Go to a festival with friends and create one.</Text>
               </View>
             ) : (
               <ScrollView

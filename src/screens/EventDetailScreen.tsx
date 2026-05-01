@@ -920,7 +920,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
             onPress={() => setActiveTab('lineup')}
           >
             <Text style={[styles.tabText, activeTab === 'lineup' && styles.tabTextActive]}>
-              🎤 Lineup
+              Lineup
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -986,7 +986,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
                   style={styles.uploadBtn}
                   onPress={() => navigation.navigate('Upload')}
                 >
-                  <Text style={styles.uploadBtnText}>🙌 Upload a clip</Text>
+                  <Text style={styles.uploadBtnText}>Upload a clip</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -1053,7 +1053,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
                 {/* 🎤 Top sets at this event */}
                 {topSets.length > 0 && (
                   <View style={styles.topSetsSection}>
-                    <Text style={styles.topSetsTitle}>🎤 Top sets at this event</Text>
+                    <Text style={styles.topSetsTitle}>Top sets at this event</Text>
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -1436,7 +1436,10 @@ export default function EventDetailScreen({ route, navigation }: any) {
             </View>
 
             <Text style={styles.infoLabel}>Expected Attendance</Text>
-            <Text style={styles.infoBody}>👥 {event.attendees}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="people" size={14} color="#8B5CF6" />
+              <Text style={styles.infoBody}>{event.attendees}</Text>
+            </View>
 
             <Text style={styles.infoLabel}>Genres</Text>
             <View style={styles.genreTagsRow}>
@@ -1449,7 +1452,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
 
             {event.upcoming && (
               <TouchableOpacity style={styles.ticketBtn} activeOpacity={0.85}>
-                <Text style={styles.ticketBtnText}>🎫 Get tickets</Text>
+                <Text style={styles.ticketBtnText}>Get tickets</Text>
               </TouchableOpacity>
             )}
 
@@ -1465,7 +1468,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
             )}
 
             {/* ── Event Stats ── */}
-            <Text style={styles.infoLabel}>📊 Event Stats</Text>
+            <Text style={styles.infoLabel}>Event Stats</Text>
             {loading ? (
               <ActivityIndicator size="small" color="#8B5CF6" style={{ marginVertical: 12 }} />
             ) : eventStats === null ? (

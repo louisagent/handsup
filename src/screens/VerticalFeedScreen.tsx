@@ -589,7 +589,7 @@ export default function VerticalFeedScreen({ navigation, route }: any) {
         <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
         <Ionicons name="videocam-outline" size={64} color="#333" />
         <Text style={styles.emptyText}>No clips yet</Text>
-        <Text style={styles.emptySubText}>Be the first to upload! 🙌</Text>
+        <Text style={styles.emptySubText}>Be the first to upload!</Text>
       </View>
     );
   }
