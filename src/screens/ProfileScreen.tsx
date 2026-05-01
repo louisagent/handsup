@@ -25,7 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_COLUMNS = 2;
-const GRID_SPACING = 12;
+const GRID_SPACING = 16;
 const GRID_PADDING = 16;
 const GRID_TILE_SIZE = (SCREEN_WIDTH - (GRID_PADDING * 2) - GRID_SPACING) / GRID_COLUMNS;
 import { Ionicons } from '@expo/vector-icons';
@@ -814,7 +814,7 @@ export default function ProfileScreen({ navigation }: any) {
         {clips.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="videocam-outline" size={36} color="#333" />
-            <Text style={styles.emptyText}>Your first clip could be the most viewed. 👀</Text>
+            <Text style={styles.emptyText}>Your first clip could be the most viewed.</Text>
           </View>
         ) : (
           <>

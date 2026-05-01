@@ -150,7 +150,7 @@ export default function EventsScreen({ navigation }: any) {
       // After joining, refresh memberships so the event appears in the list
       getMyEventMemberships().then(setMemberEventIds).catch(() => {});
 
-      Alert.alert('Success! 🎉', 'You\'ve joined the private event.', [
+      Alert.alert('Success!', 'You\'ve joined the private event.', [
         {
           text: 'View Event', onPress: () => {
             setJoinModalVisible(false);
