@@ -769,7 +769,7 @@ export default function HomeScreen({ navigation }: any) {
           const festivalSummary = Object.entries(festivalCounts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 3)
-            .map(([name, count]) => `🎪 ${name} — ${count} clip${count !== 1 ? 's' : ''}`)
+            .map(([name, count]) => `${name} — ${count} clip${count !== 1 ? 's' : ''}`)
             .join('  ·  ');
           return (
             <View style={styles.happeningNowSection}>
@@ -1065,7 +1065,7 @@ export default function HomeScreen({ navigation }: any) {
             {followingClips.length === 0 && repostClips.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>
-                  Follow some creators to see their clips here 🙌
+                  Follow some creators to see their clips here
                 </Text>
                 <TouchableOpacity
                   style={styles.discoverBtn}

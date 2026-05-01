@@ -154,17 +154,19 @@ function GridClipTile({
   clip,
   onPress,
   onLongPress,
+  featured,
 }: {
   clip: Clip;
   onPress: () => void;
   onLongPress: () => void;
+  featured?: boolean;
 }) {
   return (
     <TouchableOpacity
-      style={gridTileStyles.container}
+      style={[gridTileStyles.container, featured && gridTileStyles.featuredContainer]}
       onPress={onPress}
       onLongPress={onLongPress}
-      activeOpacity={0.9}
+      activeOpacity={0.97}
       delayLongPress={400}
     >
       {/* Thumbnail */}
@@ -180,11 +182,11 @@ function GridClipTile({
         </View>
       )}
       
-      {/* Overlay gradient */}
+      {/* Overlay gradient - stronger fade for readability */}
       <LinearGradient
-        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.85)']}
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)', 'rgba(0,0,0,0.92)']}
         style={gridTileStyles.overlay}
-        locations={[0, 0.5, 1]}
+        locations={[0, 0.4, 1]}
       >
         <Text style={gridTileStyles.artist} numberOfLines={1}>{clip.artist}</Text>
         <View style={gridTileStyles.locationRow}>
@@ -192,12 +194,6 @@ function GridClipTile({
           <Text style={gridTileStyles.location} numberOfLines={1}>{clip.location}</Text>
         </View>
       </LinearGradient>
-
-      {/* Stats badge */}
-      <View style={gridTileStyles.statsBadge}>
-        <Ionicons name="eye" size={9} color="#fff" style={{ opacity: 0.9 }} />
-        <Text style={gridTileStyles.statsText}>{(clip.view_count ?? 0).toLocaleString()}</Text>
-      </View>
     </TouchableOpacity>
   );
 }
@@ -208,8 +204,13 @@ const gridTileStyles = StyleSheet.create({
     height: GRID_TILE_SIZE * 1.25, // 4:5 aspect ratio
     marginBottom: GRID_SPACING,
     position: 'relative',
-    borderRadius: 8,
+    borderRadius: 10,
     overflow: 'hidden',
+  },
+  featuredContainer: {
+    width: '100%',
+    height: 320,
+    marginBottom: 16,
   },
   thumbnail: {
     width: '100%',
@@ -228,8 +229,8 @@ const gridTileStyles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 12,
-    paddingTop: 36,
+    padding: 16,
+    paddingTop: 48,
   },
   artist: {
     fontSize: 12,
@@ -254,25 +255,6 @@ const gridTileStyles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.9)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
-  },
-  statsBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 12,
-    opacity: 0.8,
-  },
-  statsText: {
-    fontSize: 9,
-    fontWeight: '600',
-    color: '#fff',
-    opacity: 0.95,
   },
 });
 
@@ -367,29 +349,29 @@ const settingStyles = StyleSheet.create({
 
 function getCreatorTagline(uploadCount: number): string {
   // Comprehensive progression system with 20+ levels
-  if (uploadCount === 0) return 'New to handsup 👋';
-  if (uploadCount === 1) return 'First clip uploaded 🎬';
-  if (uploadCount <= 3) return 'Getting started 📱';
-  if (uploadCount <= 5) return 'Finding your rhythm 🎵';
-  if (uploadCount <= 8) return 'Warming up 🔥';
-  if (uploadCount <= 12) return 'Building momentum 📈';
-  if (uploadCount <= 17) return 'Regular uploader 🎪';
-  if (uploadCount <= 24) return 'Committed creator 📹';
-  if (uploadCount <= 35) return 'Festival regular 🎡';
-  if (uploadCount <= 49) return 'Frequent flyer ✈️';
-  if (uploadCount <= 74) return 'Festival enthusiast 🎉';
-  if (uploadCount <= 99) return 'Scene regular 🌟';
-  if (uploadCount <= 149) return 'Festival veteran 🙌';
-  if (uploadCount <= 199) return 'Seasoned pro 🎯';
-  if (uploadCount <= 299) return 'Festival expert 🏅';
-  if (uploadCount <= 399) return 'Archive builder 📼';
-  if (uploadCount <= 499) return 'Festival historian 📚';
-  if (uploadCount <= 749) return 'Memory keeper 💫';
-  if (uploadCount <= 999) return 'Festival legend 👑';
-  if (uploadCount <= 1499) return 'Hall of Famer 🏆';
-  if (uploadCount <= 1999) return 'Icon 💎';
-  if (uploadCount <= 2999) return 'Living archive 🎭';
-  return 'Handsup immortal ⚡';
+  if (uploadCount === 0) return 'New to Handsup';
+  if (uploadCount === 1) return 'First Clip Uploaded';
+  if (uploadCount <= 3) return 'Getting Started';
+  if (uploadCount <= 5) return 'Finding Your Rhythm';
+  if (uploadCount <= 8) return 'Warming Up';
+  if (uploadCount <= 12) return 'Building Momentum';
+  if (uploadCount <= 17) return 'Regular Uploader';
+  if (uploadCount <= 24) return 'Committed Creator';
+  if (uploadCount <= 35) return 'Festival Regular';
+  if (uploadCount <= 49) return 'Frequent Flyer';
+  if (uploadCount <= 74) return 'Festival Enthusiast';
+  if (uploadCount <= 99) return 'Scene Regular';
+  if (uploadCount <= 149) return 'Festival Veteran';
+  if (uploadCount <= 199) return 'Seasoned Pro';
+  if (uploadCount <= 299) return 'Festival Expert';
+  if (uploadCount <= 399) return 'Archive Builder';
+  if (uploadCount <= 499) return 'Festival Historian';
+  if (uploadCount <= 749) return 'Memory Keeper';
+  if (uploadCount <= 999) return 'Festival Legend';
+  if (uploadCount <= 1499) return 'Hall of Famer';
+  if (uploadCount <= 1999) return 'Icon';
+  if (uploadCount <= 2999) return 'Living Archive';
+  return 'Handsup Immortal';
 }
 
 // ── Main Screen ─────────────────────────────────────────────
@@ -841,6 +823,7 @@ export default function ProfileScreen({ navigation }: any) {
                 <GridClipTile
                   key={clip.id}
                   clip={clip}
+                  featured={index === 0}
                   onPress={() => navigation.navigate('VideoDetail', {
                     video: clip,
                     playlist: sortedClips,
