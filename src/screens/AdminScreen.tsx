@@ -247,7 +247,7 @@ export default function AdminScreen({ navigation }: any) {
   const [contentTab, setContentTab] = useState<'artists' | 'festivals' | 'locations'>('artists');
   const [artists, setArtists] = useState<Artist[]>([]);
   const [artistsLoading, setArtistsLoading] = useState(true);
-  const [festivals, setFestivals] = useState<{ name: string; image_url?: string }[]>([]);
+  const [festivals, setFestivals] = useState<{ name: string; image_url?: string; count: number }[]>([]);
   const [festivalsLoading, setFestivalsLoading] = useState(true);
   const [locations, setLocations] = useState<{ location: string; count: number }[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(true);
@@ -256,6 +256,10 @@ export default function AdminScreen({ navigation }: any) {
   const [mergeTarget, setMergeTarget] = useState('');
   const [renameValue, setRenameValue] = useState('');
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+  const [selectedFestival, setSelectedFestival] = useState<{ name: string; count: number } | null>(null);
+  const [festivalMergeTarget, setFestivalMergeTarget] = useState('');
+  const [festivalRenameValue, setFestivalRenameValue] = useState('');
+  const [festivalSuggestions, setFestivalSuggestions] = useState<string[]>([]);
 
   // ── Role check ─────────────────────────────────────────────
 
@@ -333,7 +337,12 @@ export default function AdminScreen({ navigation }: any) {
         .select('festival_name')
         .not('festival_name', 'is', null);
       
-      const clipFestivals = new Set(clipData?.map((c: any) => c.festival_name) ?? []);
+      // Count clips per festival
+      const festivalCounts = new Map<string, number>();
+      clipData?.forEach((c: any) => {
+        const name = c.festival_name;
+        festivalCounts.set(name, (festivalCounts.get(name) || 0) + 1);
+      });
 
       // Load festivals from events table (includes upcoming)
       const { data: eventsData } = await supabase
@@ -344,7 +353,7 @@ export default function AdminScreen({ navigation }: any) {
       const eventNames = eventsData?.map((e: any) => e.name) ?? [];
       
       // Combine both sources
-      const allFestivals = Array.from(new Set([...clipFestivals, ...eventNames]));
+      const allFestivals = Array.from(new Set([...festivalCounts.keys(), ...eventNames]));
       
       // Try to load existing festival images
       const { data: festivalImages } = await supabase
@@ -356,6 +365,7 @@ export default function AdminScreen({ navigation }: any) {
       setFestivals(allFestivals.sort().map(name => ({
         name,
         image_url: imageMap.get(name),
+        count: festivalCounts.get(name) || 0,
       })));
     } catch {}
     finally { setFestivalsLoading(false); }
@@ -704,6 +714,94 @@ export default function AdminScreen({ navigation }: any) {
       Alert.alert('Success', `Renamed to "${renameValue}"`);
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'Failed to rename location');
+    }
+  };
+
+  // ── Festival actions ──────────────────────────────────────
+
+  const handleFestivalAction = (festival: { name: string; count: number }) => {
+    setSelectedFestival(festival);
+    setFestivalRenameValue(festival.name);
+    setFestivalMergeTarget('');
+    setFestivalSuggestions([]);
+  };
+
+  const handleFestivalMergeTargetChange = (text: string) => {
+    setFestivalMergeTarget(text);
+    if (text.trim().length > 0) {
+      const suggestions = festivals
+        .filter(f => f.name !== selectedFestival?.name)
+        .filter(f => f.name.toLowerCase().includes(text.toLowerCase()))
+        .map(f => f.name)
+        .slice(0, 5);
+      setFestivalSuggestions(suggestions);
+    } else {
+      setFestivalSuggestions([]);
+    }
+  };
+
+  const handleMergeFestival = async () => {
+    if (!selectedFestival || !festivalMergeTarget.trim()) {
+      Alert.alert('Error', 'Please enter a target festival');
+      return;
+    }
+
+    Alert.alert(
+      'Merge Festivals',
+      `Merge "${selectedFestival.name}" into "${festivalMergeTarget}"? This will update ${selectedFestival.count} clip(s).`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Merge',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('clips')
+                .update({ festival_name: festivalMergeTarget })
+                .eq('festival_name', selectedFestival.name);
+              
+              if (error) throw error;
+              
+              // Reload festivals to get updated counts
+              await loadFestivals();
+              
+              setSelectedFestival(null);
+              setFestivalMergeTarget('');
+              setFestivalSuggestions([]);
+              
+              Alert.alert('Success', `Merged ${selectedFestival.count} clips into "${festivalMergeTarget}".`);
+            } catch (e: any) {
+              Alert.alert('Error', e?.message ?? 'Failed to merge festivals');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRenameFestival = async () => {
+    if (!selectedFestival || !festivalRenameValue.trim()) {
+      Alert.alert('Error', 'Please enter a new festival name');
+      return;
+    }
+
+    if (festivalRenameValue === selectedFestival.name) {
+      setSelectedFestival(null);
+      return;
+    }
+
+    try {
+      await supabase
+        .from('clips')
+        .update({ festival_name: festivalRenameValue })
+        .eq('festival_name', selectedFestival.name);
+      
+      setSelectedFestival(null);
+      loadFestivals();
+      Alert.alert('Success', `Renamed to "${festivalRenameValue}"`);
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to rename festival');
     }
   };
 
@@ -1226,7 +1324,11 @@ export default function AdminScreen({ navigation }: any) {
                   </View>
                 }
                 renderItem={({ item }) => (
-                  <View style={styles.contentCard}>
+                  <TouchableOpacity
+                    style={styles.contentCard}
+                    onPress={() => handleFestivalAction(item)}
+                    activeOpacity={0.7}
+                  >
                     <View style={styles.contentImageBox}>
                       {item.image_url ? (
                         <Image source={{ uri: item.image_url }} style={styles.contentImage} />
@@ -1236,20 +1338,27 @@ export default function AdminScreen({ navigation }: any) {
                     </View>
                     <View style={styles.contentInfo}>
                       <Text style={styles.contentName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.contentGenre} numberOfLines={1}>{item.count} clip{item.count !== 1 ? 's' : ''}</Text>
                     </View>
-                    {uploadingIds.has(item.name) ? (
-                      <ActivityIndicator size="small" color="#10B981" />
-                    ) : (
-                      <TouchableOpacity
-                        style={styles.editPhotoBtn}
-                        onPress={() => handleEditFestivalPhoto(item.name)}
-                        activeOpacity={0.8}
-                      >
-                        <Ionicons name="camera-outline" size={16} color="#10B981" />
-                        <Text style={styles.editPhotoBtnText}>Edit Photo</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                    <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                      {uploadingIds.has(item.name) ? (
+                        <ActivityIndicator size="small" color="#10B981" />
+                      ) : (
+                        <TouchableOpacity
+                          style={styles.editPhotoBtn}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleEditFestivalPhoto(item.name);
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Ionicons name="camera-outline" size={16} color="#10B981" />
+                          <Text style={styles.editPhotoBtnText}>Photo</Text>
+                        </TouchableOpacity>
+                      )}
+                      <Ionicons name="chevron-forward" size={20} color="#555" />
+                    </View>
+                  </TouchableOpacity>
                 )}
                 contentContainerStyle={
                   festivals.length === 0 ? styles.emptyContainer : styles.listContent
@@ -1386,6 +1495,83 @@ export default function AdminScreen({ navigation }: any) {
                 </TouchableOpacity>
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Festival Edit Modal */}
+      <Modal
+        visible={!!selectedFestival}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedFestival(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Festival</Text>
+              <TouchableOpacity onPress={() => setSelectedFestival(null)} style={styles.modalClose}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>Current: {selectedFestival?.name}</Text>
+            <Text style={styles.modalSubLabel}>{selectedFestival?.count} clip(s) affected</Text>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Rename</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={festivalRenameValue}
+                onChangeText={setFestivalRenameValue}
+                placeholder="New festival name"
+                placeholderTextColor="#666"
+              />
+              <TouchableOpacity
+                style={styles.modalBtn}
+                onPress={handleRenameFestival}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnText}>Rename</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalDivider} />
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Merge into another festival</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={festivalMergeTarget}
+                onChangeText={handleFestivalMergeTargetChange}
+                placeholder="Start typing festival name..."
+                placeholderTextColor="#666"
+                autoCapitalize="words"
+              />
+              {festivalSuggestions.length > 0 && (
+                <View style={styles.suggestionsBox}>
+                  {festivalSuggestions.map((suggestion, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        setFestivalMergeTarget(suggestion);
+                        setFestivalSuggestions([]);
+                      }}
+                    >
+                      <Text style={styles.suggestionText}>{suggestion}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnDestructive]}
+                onPress={handleMergeFestival}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.modalBtnText}>Merge</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

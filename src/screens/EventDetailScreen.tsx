@@ -87,7 +87,7 @@ function normaliseEvent(raw: FestivalEvent | SupabaseEvent): FestivalEvent {
 export default function EventDetailScreen({ route, navigation }: any) {
   const rawEvent: FestivalEvent | SupabaseEvent = route.params?.event;
   const event: FestivalEvent = normaliseEvent(rawEvent);
-  const [activeTab, setActiveTab] = useState<'clips' | 'lineup' | 'info' | 'about' | 'discussion' | 'transport'>('clips');
+  const [activeTab, setActiveTab] = useState<'clips' | 'lineup' | 'info' | 'discussion' | 'transport'>('clips');
 
   const [clips, setClips] = useState<Clip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -931,21 +931,7 @@ export default function EventDetailScreen({ route, navigation }: any) {
               ℹ️ Info
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'about' && styles.tabActive]}
-            onPress={() => setActiveTab('about')}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons
-                name="information-circle-outline"
-                size={16}
-                color={activeTab === 'about' ? '#8B5CF6' : '#666'}
-              />
-              <Text style={[styles.tabText, activeTab === 'about' && styles.tabTextActive]}>
-                About
-              </Text>
-            </View>
-          </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.tab, activeTab === 'discussion' && styles.tabActive]}
             onPress={() => setActiveTab('discussion')}
@@ -1471,65 +1457,6 @@ export default function EventDetailScreen({ route, navigation }: any) {
           </View>
         )}
 
-        {/* ══════════════ ABOUT TAB ══════════════ */}
-        {activeTab === 'about' && (
-          <View style={styles.aboutSection}>
-            {event.is_partner && (
-              <LinearGradient
-                colors={['#3B0764', '#4C1D95']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.aboutPartnerBadge}
-              >
-                <Ionicons name="checkmark-circle" size={16} color="#C4B5FD" style={{ marginRight: 6 }} />
-                <Text style={styles.aboutPartnerBadgeText}>Official Handsup Festival Partner</Text>
-              </LinearGradient>
-            )}
-
-            <Text style={styles.infoLabel}>About</Text>
-            <Text style={styles.infoBody}>{event.description}</Text>
-
-            <Text style={styles.infoLabel}>Location</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="location" size={14} color="#8B5CF6" />
-              <Text style={styles.infoBody}>{event.location}, {event.country}</Text>
-            </View>
-
-            <Text style={styles.infoLabel}>Dates</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="calendar-outline" size={14} color="#8B5CF6" />
-              <Text style={styles.infoBody}>{event.dates ?? ''}</Text>
-            </View>
-
-            <Text style={styles.infoLabel}>Expected Attendance</Text>
-            <Text style={styles.infoBody}>👥 {event.attendees}</Text>
-
-            <Text style={styles.infoLabel}>Genres</Text>
-            <View style={styles.genreTagsRow}>
-              {event.genre.map((g) => (
-                <View key={g} style={styles.genreChip}>
-                  <Text style={styles.genreText}>{g}</Text>
-                </View>
-              ))}
-            </View>
-
-            {event.upcoming && (
-              <TouchableOpacity style={styles.ticketBtn} activeOpacity={0.85}>
-                <Text style={styles.ticketBtnText}>🎟 Get tickets</Text>
-              </TouchableOpacity>
-            )}
-
-            {!event.is_partner && (
-              <TouchableOpacity
-                style={styles.partnerLinkRow}
-                onPress={() => navigation.navigate('Partnership')}
-                activeOpacity={0.75}
-              >
-                <Text style={styles.partnerLinkText}>Is this your festival? Become a partner →</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
         {/* ══════════════ DISCUSSION TAB ══════════════ */}
         {activeTab === 'discussion' && (
           <View style={styles.discussionSection}>
