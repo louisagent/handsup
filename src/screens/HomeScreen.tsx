@@ -65,6 +65,7 @@ export default function HomeScreen({ navigation }: any) {
   const [lastYearClips, setLastYearClips] = useState<Clip[]>([]);
   const [featuredFestival, setFeaturedFestival] = useState<{ festivalName: string; clips: Clip[] } | null>(null);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [festivalImages, setFestivalImages] = useState<Map<string, string>>(new Map());
   // Raw (unfiltered) clips kept so we can re-filter without a network request
   const rawRecentRef = useRef<Clip[]>([]);
   const rawFollowingRef = useRef<Clip[]>([]);
@@ -253,6 +254,20 @@ export default function HomeScreen({ navigation }: any) {
           events = await getUpcomingEvents(5).catch(() => []);
         }
         setUpcomingEvents(events);
+        
+        // Load festival images for upcoming events
+        if (events.length > 0) {
+          const { data: images } = await supabase
+            .from('festival_images')
+            .select('festival_name, image_url')
+            .in('festival_name', events.map((e: any) => e.name));
+          
+          if (images) {
+            const imageMap = new Map<string, string>();
+            images.forEach((img: any) => imageMap.set(img.festival_name, img.image_url));
+            setFestivalImages(imageMap);
+          }
+        }
       })();
       // repostData is RepostFeedItem[] from getRepostFeed
       const repostItems = repostData as RepostFeedItem[];
@@ -822,6 +837,7 @@ export default function HomeScreen({ navigation }: any) {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.upcomingScroll}>
               {upcomingEvents.map((event) => {
                 const daysUntil = Math.ceil((new Date(event.start_date).getTime() - Date.now()) / 86400000);
+                const imageUrl = festivalImages.get(event.name);
                 return (
                   <TouchableOpacity
                     key={event.id}
@@ -829,12 +845,30 @@ export default function HomeScreen({ navigation }: any) {
                     onPress={() => navigation.navigate('EventDetail', { event })}
                     activeOpacity={0.85}
                   >
+                    {/* Background image */}
+                    {imageUrl ? (
+                      <Image source={{ uri: imageUrl }} style={styles.upcomingCardBg} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.upcomingCardBg} />
+                    )}
+                    
+                    {/* Gradient overlay */}
+                    <LinearGradient
+                      colors={['rgba(0,0,0,0.3)', 'rgba(0,0,0,0.7)']}
+                      style={styles.upcomingCardOverlay}
+                    />
+                    
+                    {/* Countdown badge */}
                     <View style={styles.upcomingDaysBadge}>
                       <Text style={styles.upcomingDaysNum}>{daysUntil}</Text>
                       <Text style={styles.upcomingDaysLabel}>days</Text>
                     </View>
-                    <Text style={styles.upcomingEventName} numberOfLines={2}>{event.name}</Text>
-                    <Text style={styles.upcomingEventCity} numberOfLines={1}>{event.city}</Text>
+                    
+                    {/* Event info */}
+                    <View style={styles.upcomingCardInfo}>
+                      <Text style={styles.upcomingEventName} numberOfLines={2}>{event.name}</Text>
+                      <Text style={styles.upcomingEventCity} numberOfLines={1}>{event.city}</Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -1422,25 +1456,66 @@ const styles = StyleSheet.create({
   },
   upcomingScroll: { paddingHorizontal: 16, gap: 10 },
   upcomingCard: {
-    width: 140,
-    backgroundColor: '#111',
+    width: 160,
+    height: 220,
     borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1e1e1e',
-    padding: 14,
-    gap: 8,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  upcomingCardBg: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#111',
+  },
+  upcomingCardOverlay: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
   },
   upcomingDaysBadge: {
-    backgroundColor: '#1a1228',
-    borderRadius: 10,
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: 'rgba(139, 92, 246, 0.95)',
+    borderRadius: 12,
     padding: 8,
+    paddingHorizontal: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#8B5CF633',
-    alignSelf: 'flex-start',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  upcomingDaysNum: { fontSize: 22, fontWeight: '800', color: '#8B5CF6' },
-  upcomingDaysLabel: { fontSize: 10, color: '#8B5CF6', fontWeight: '600' },
-  upcomingEventName: { fontSize: 13, fontWeight: '700', color: '#fff', lineHeight: 18 },
-  upcomingEventCity: { fontSize: 11, color: '#555' },
+  upcomingDaysNum: { fontSize: 24, fontWeight: '800', color: '#fff', lineHeight: 26 },
+  upcomingDaysLabel: { fontSize: 9, color: '#fff', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  upcomingCardInfo: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
+    paddingTop: 24,
+  },
+  upcomingEventName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#fff',
+    lineHeight: 18,
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+    letterSpacing: -0.3,
+  },
+  upcomingEventCity: {
+    fontSize: 11,
+    color: '#fff',
+    opacity: 0.9,
+    marginTop: 2,
+    fontWeight: '600',
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
 });
