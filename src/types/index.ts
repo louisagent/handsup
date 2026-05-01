@@ -152,3 +152,29 @@ export interface GroupClip {
   clip?: Clip;
   adder?: Profile;
 }
+
+export interface Playlist {
+  id: string;
+  name: string;
+  description?: string;
+  owner_id: string;
+  thumbnail_url?: string;
+  is_collaborative: boolean;
+  collaborators?: string[];
+  clip_count?: number;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  owner?: Profile;
+}
+
+export interface PlaylistClip {
+  id: string;
+  playlist_id: string;
+  clip_id: string;
+  added_by?: string;
+  added_at: string;
+  // Joined fields
+  clip?: Clip;
+  adder?: Profile;
+}

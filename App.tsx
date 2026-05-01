@@ -61,6 +61,10 @@ import AddArtistScreen from './src/screens/AddArtistScreen';
 import InboxScreen from './src/screens/InboxScreen';
 import ConversationScreen from './src/screens/ConversationScreen';
 import ShareToDMScreen from './src/screens/ShareToDMScreen';
+import InstagramShareScreen from './src/screens/InstagramShareScreen';
+import PlaylistScreen from './src/screens/PlaylistScreen';
+import PlaylistDetailScreen from './src/screens/PlaylistDetailScreen';
+import DownloadPackScreen from './src/screens/DownloadPackScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
@@ -590,6 +594,26 @@ export default function App() {
           name="AddArtist"
           component={AddArtistScreen}
           options={{ title: 'Add Artist', headerBackTitle: 'Back' }}
+        />
+        <Stack.Screen
+          name="InstagramShare"
+          component={InstagramShareScreen as any}
+          options={{ headerShown: false, presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="Playlists"
+          component={PlaylistScreen as any}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PlaylistDetail"
+          component={PlaylistDetailScreen as any}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="DownloadPack"
+          component={DownloadPackScreen as any}
+          options={{ headerShown: false, presentation: 'modal' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
