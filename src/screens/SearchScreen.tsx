@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -325,6 +326,27 @@ export default function SearchScreen({ navigation, route }: any) {
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autocompleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Load distinct locations from clips (with deduplication)
+  const loadLocations = useCallback(async () => {
+    const { data } = await supabase
+      .from('clips')
+      .select('location')
+      .not('location', 'is', null);
+    
+    if (data) {
+      const rawLocs = (data as any[]).map((r) => r.location as string).filter(Boolean);
+      const locs = deduplicateLocations(rawLocs);
+      setAllLocations(locs);
+    }
+  }, []);
+
+  // Reload locations when screen comes into focus (e.g. after merging in moderator tab)
+  useFocusEffect(
+    useCallback(() => {
+      loadLocations();
+    }, [loadLocations])
+  );
+
   useEffect(() => {
     // Load cached location for distance sorting
     getCachedLocation().then((loc) => {
@@ -344,14 +366,8 @@ export default function SearchScreen({ navigation, route }: any) {
     // Load all artists
     setAllArtistsLoading(true);
     getAllArtists().then(setAllArtists).catch(() => {}).finally(() => setAllArtistsLoading(false));
-    // Load distinct locations from clips with deduplication
-    supabase.from('clips').select('location').not('location', 'is', null).then(({ data }) => {
-      if (data) {
-        const rawLocs = (data as any[]).map((r) => r.location as string).filter(Boolean);
-        const locs = deduplicateLocations(rawLocs);
-        setAllLocations(locs);
-      }
-    });
+    // Load locations initially
+    loadLocations();
     // If initialQuery was passed (e.g. from hashtag tap), run search immediately
     if (route?.params?.initialQuery) {
       doSearch(route.params.initialQuery, category);
