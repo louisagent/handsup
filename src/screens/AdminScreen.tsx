@@ -255,6 +255,7 @@ export default function AdminScreen({ navigation }: any) {
   const [selectedLocation, setSelectedLocation] = useState<{ location: string; count: number } | null>(null);
   const [mergeTarget, setMergeTarget] = useState('');
   const [renameValue, setRenameValue] = useState('');
+  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
 
   // ── Role check ─────────────────────────────────────────────
 
@@ -598,6 +599,47 @@ export default function AdminScreen({ navigation }: any) {
     setSelectedLocation(location);
     setRenameValue(location.location);
     setMergeTarget('');
+    setLocationSuggestions([]);
+  };
+
+  const handleMergeTargetChange = (text: string) => {
+    setMergeTarget(text);
+    if (text.trim().length > 0) {
+      const suggestions = locations
+        .filter(l => l.location !== selectedLocation?.location)
+        .filter(l => l.location.toLowerCase().includes(text.toLowerCase()))
+        .map(l => l.location)
+        .slice(0, 5);
+      setLocationSuggestions(suggestions);
+    } else {
+      setLocationSuggestions([]);
+    }
+  };
+
+  const handleDeleteLocation = async () => {
+    if (!selectedLocation) return;
+
+    if (selectedLocation.count > 0) {
+      Alert.alert('Cannot Delete', 'This location still has clips. Merge or rename it first.');
+      return;
+    }
+
+    Alert.alert(
+      'Delete Location',
+      `Delete "${selectedLocation.location}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            setSelectedLocation(null);
+            loadLocations();
+            Alert.alert('Success', 'Location removed from list');
+          },
+        },
+      ]
+    );
   };
 
   const handleMergeLocation = async () => {
@@ -616,14 +658,21 @@ export default function AdminScreen({ navigation }: any) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await supabase
+              const { error } = await supabase
                 .from('clips')
                 .update({ location: mergeTarget })
                 .eq('location', selectedLocation.location);
               
+              if (error) throw error;
+              
+              // Reload locations to get updated counts
+              await loadLocations();
+              
               setSelectedLocation(null);
-              loadLocations();
-              Alert.alert('Success', `Merged ${selectedLocation.count} clips into "${mergeTarget}"`);
+              setMergeTarget('');
+              setLocationSuggestions([]);
+              
+              Alert.alert('Success', `Merged ${selectedLocation.count} clips into "${mergeTarget}". The source location now has 0 clips and can be deleted.`);
             } catch (e: any) {
               Alert.alert('Error', e?.message ?? 'Failed to merge locations');
             }
@@ -1295,10 +1344,27 @@ export default function AdminScreen({ navigation }: any) {
               <TextInput
                 style={styles.modalInput}
                 value={mergeTarget}
-                onChangeText={setMergeTarget}
-                placeholder="Target location name"
+                onChangeText={handleMergeTargetChange}
+                placeholder="Start typing location name..."
                 placeholderTextColor="#666"
+                autoCapitalize="words"
               />
+              {locationSuggestions.length > 0 && (
+                <View style={styles.suggestionsBox}>
+                  {locationSuggestions.map((suggestion, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={styles.suggestionItem}
+                      onPress={() => {
+                        setMergeTarget(suggestion);
+                        setLocationSuggestions([]);
+                      }}
+                    >
+                      <Text style={styles.suggestionText}>{suggestion}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
               <TouchableOpacity
                 style={[styles.modalBtn, styles.modalBtnDestructive]}
                 onPress={handleMergeLocation}
@@ -1307,6 +1373,19 @@ export default function AdminScreen({ navigation }: any) {
                 <Text style={styles.modalBtnText}>Merge</Text>
               </TouchableOpacity>
             </View>
+
+            {selectedLocation?.count === 0 && (
+              <>
+                <View style={styles.modalDivider} />
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnDelete]}
+                  onPress={handleDeleteLocation}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.modalBtnText}>Delete Empty Location</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </Modal>
@@ -1712,5 +1791,28 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#2a2a2a',
     marginVertical: 20,
+  },
+  modalBtnDelete: {
+    backgroundColor: '#DC2626',
+  },
+  suggestionsBox: {
+    backgroundColor: '#0a0a0a',
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+    borderRadius: 8,
+    marginTop: -12,
+    marginBottom: 12,
+    maxHeight: 150,
+  },
+  suggestionItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a1a1a',
+  },
+  suggestionText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
