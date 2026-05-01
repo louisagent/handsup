@@ -26,7 +26,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const GRID_COLUMNS = 2;
-const GRID_SPACING = 16;
+const GRID_SPACING = 12;
 const GRID_PADDING = 16;
 const GRID_TILE_SIZE = (SCREEN_WIDTH - (GRID_PADDING * 2) - GRID_SPACING) / GRID_COLUMNS;
 import { Ionicons } from '@expo/vector-icons';
@@ -156,15 +156,23 @@ function GridClipTile({
   onPress,
   onLongPress,
   featured,
+  index,
 }: {
   clip: Clip;
   onPress: () => void;
   onLongPress: () => void;
   featured?: boolean;
+  index?: number;
 }) {
+  const isRightColumn = index !== undefined && (index % 2 === 1);
   return (
     <TouchableOpacity
-      style={[gridTileStyles.container, featured && gridTileStyles.featuredContainer]}
+      style={[
+        gridTileStyles.container,
+        featured && gridTileStyles.featuredContainer,
+        !featured && isRightColumn && { marginRight: 0 },
+        !featured && !isRightColumn && { marginRight: GRID_SPACING },
+      ]}
       onPress={onPress}
       onLongPress={onLongPress}
       activeOpacity={0.97}
@@ -202,16 +210,18 @@ function GridClipTile({
 const gridTileStyles = StyleSheet.create({
   container: {
     width: GRID_TILE_SIZE,
-    height: GRID_TILE_SIZE * 1.25, // 4:5 aspect ratio
+    height: GRID_TILE_SIZE * 1.33, // 3:4 aspect ratio for cleaner grid
     marginBottom: GRID_SPACING,
     position: 'relative',
-    borderRadius: 10,
+    borderRadius: 12,
     overflow: 'hidden',
+    backgroundColor: '#1a1a1a',
   },
   featuredContainer: {
     width: '100%',
     height: 320,
     marginBottom: 16,
+    marginRight: 0,
   },
   thumbnail: {
     width: '100%',
@@ -879,6 +889,7 @@ export default function ProfileScreen({ navigation }: any) {
                   key={clip.id}
                   clip={clip}
                   featured={index === 0}
+                  index={index === 0 ? undefined : index - 1}
                   onPress={() => navigation.navigate('VideoDetail', {
                     video: clip,
                     playlist: sortedClips,
@@ -1191,7 +1202,6 @@ const styles = StyleSheet.create({
   clipsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
     paddingHorizontal: GRID_PADDING,
     marginTop: 0,
     marginBottom: 16,
