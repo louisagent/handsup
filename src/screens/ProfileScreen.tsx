@@ -21,11 +21,13 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const GRID_COLUMNS = 3;
-const GRID_SPACING = 2;
-const GRID_TILE_SIZE = (SCREEN_WIDTH - (GRID_SPACING * (GRID_COLUMNS + 1))) / GRID_COLUMNS;
+const GRID_COLUMNS = 2;
+const GRID_SPACING = 12;
+const GRID_PADDING = 16;
+const GRID_TILE_SIZE = (SCREEN_WIDTH - (GRID_PADDING * 2) - GRID_SPACING) / GRID_COLUMNS;
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getCurrentProfile, getMyUploads } from '../services/auth';
@@ -183,17 +185,21 @@ function GridClipTile({
       )}
       
       {/* Overlay gradient */}
-      <View style={gridTileStyles.overlay}>
+      <LinearGradient
+        colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.85)']}
+        style={gridTileStyles.overlay}
+        locations={[0, 0.5, 1]}
+      >
         <Text style={gridTileStyles.artist} numberOfLines={1}>{clip.artist}</Text>
         <View style={gridTileStyles.locationRow}>
           <Ionicons name="location" size={10} color="#fff" />
           <Text style={gridTileStyles.location} numberOfLines={1}>{clip.location}</Text>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Stats badge */}
       <View style={gridTileStyles.statsBadge}>
-        <Ionicons name="eye" size={10} color="#fff" />
+        <Ionicons name="eye" size={9} color="#fff" style={{ opacity: 0.9 }} />
         <Text style={gridTileStyles.statsText}>{(clip.view_count ?? 0).toLocaleString()}</Text>
       </View>
     </TouchableOpacity>
@@ -203,10 +209,10 @@ function GridClipTile({
 const gridTileStyles = StyleSheet.create({
   container: {
     width: GRID_TILE_SIZE,
-    height: GRID_TILE_SIZE * 1.4, // 9:16 aspect ratio
+    height: GRID_TILE_SIZE * 1.25, // 4:5 aspect ratio
     marginBottom: GRID_SPACING,
     position: 'relative',
-    borderRadius: 4,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   thumbnail: {
@@ -226,49 +232,51 @@ const gridTileStyles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 8,
-    paddingTop: 24,
-    backgroundColor: 'rgba(0,0,0,0.7)',
+    padding: 12,
+    paddingTop: 36,
   },
   artist: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: '#fff',
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
+    letterSpacing: -0.2,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    marginTop: 2,
+    gap: 4,
+    marginTop: 3,
   },
   location: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '500',
     color: '#fff',
-    opacity: 0.9,
-    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    opacity: 0.85,
+    textShadowColor: 'rgba(0, 0, 0, 0.9)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
   statsBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 8,
+    right: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     paddingHorizontal: 6,
     paddingVertical: 3,
-    borderRadius: 10,
+    borderRadius: 12,
+    opacity: 0.8,
   },
   statsText: {
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#fff',
+    opacity: 0.95,
   },
 });
 
@@ -284,8 +292,8 @@ const clipStyles = StyleSheet.create({
     alignItems: 'center',
   },
   cardPinned: {
-    borderColor: '#8B5CF6',
-    backgroundColor: '#0d0a1a',
+    borderColor: 'rgba(139, 92, 246, 0.5)',
+    backgroundColor: 'rgba(13, 10, 26, 0.6)',
   },
   thumb: {
     width: 90,
@@ -1062,7 +1070,7 @@ const styles = StyleSheet.create({
   attendedBadgeYear: { color: '#10B981', fontSize: 11, fontWeight: '600', marginTop: 3 },
 
   // Sections
-  section: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 4 },
+  section: { paddingHorizontal: 16, paddingTop: 32, paddingBottom: 8 },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700',
@@ -1091,9 +1099,10 @@ const styles = StyleSheet.create({
   clipsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    gap: GRID_SPACING,
+    paddingHorizontal: GRID_PADDING,
     marginTop: 0,
-    marginBottom: 10,
+    marginBottom: 16,
   },
   longPressHint: {
     fontSize: 11,
