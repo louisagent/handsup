@@ -144,10 +144,6 @@ function ClipCard({
             <Ionicons name="eye-outline" size={11} color="#8B5CF6" />
             <Text style={clipStyles.statText}>{(clip.view_count ?? 0).toLocaleString()}</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-            <Ionicons name="arrow-down-circle-outline" size={11} color="#555" />
-            <Text style={clipStyles.statText}>{clip.download_count.toLocaleString()}</Text>
-          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -370,11 +366,30 @@ const settingStyles = StyleSheet.create({
 // ── Creator tagline ─────────────────────────────────────────
 
 function getCreatorTagline(uploadCount: number): string {
+  // Comprehensive progression system with 20+ levels
   if (uploadCount === 0) return 'New to handsup 👋';
-  if (uploadCount <= 2) return 'Getting started 📱';
-  if (uploadCount <= 9) return 'Festival regular 🎪';
-  if (uploadCount <= 24) return 'Festival veteran 🙌';
-  return 'Festival crew 🏆';
+  if (uploadCount === 1) return 'First clip uploaded 🎬';
+  if (uploadCount <= 3) return 'Getting started 📱';
+  if (uploadCount <= 5) return 'Finding your rhythm 🎵';
+  if (uploadCount <= 8) return 'Warming up 🔥';
+  if (uploadCount <= 12) return 'Building momentum 📈';
+  if (uploadCount <= 17) return 'Regular uploader 🎪';
+  if (uploadCount <= 24) return 'Committed creator 📹';
+  if (uploadCount <= 35) return 'Festival regular 🎡';
+  if (uploadCount <= 49) return 'Frequent flyer ✈️';
+  if (uploadCount <= 74) return 'Festival enthusiast 🎉';
+  if (uploadCount <= 99) return 'Scene regular 🌟';
+  if (uploadCount <= 149) return 'Festival veteran 🙌';
+  if (uploadCount <= 199) return 'Seasoned pro 🎯';
+  if (uploadCount <= 299) return 'Festival expert 🏅';
+  if (uploadCount <= 399) return 'Archive builder 📼';
+  if (uploadCount <= 499) return 'Festival historian 📚';
+  if (uploadCount <= 749) return 'Memory keeper 💫';
+  if (uploadCount <= 999) return 'Festival legend 👑';
+  if (uploadCount <= 1499) return 'Hall of Famer 🏆';
+  if (uploadCount <= 1999) return 'Icon 💎';
+  if (uploadCount <= 2999) return 'Living archive 🎭';
+  return 'Handsup immortal ⚡';
 }
 
 // ── Main Screen ─────────────────────────────────────────────
@@ -1099,7 +1114,7 @@ const styles = StyleSheet.create({
   clipsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: GRID_SPACING,
+    justifyContent: 'space-between',
     paddingHorizontal: GRID_PADDING,
     marginTop: 0,
     marginBottom: 16,
