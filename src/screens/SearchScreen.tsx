@@ -71,6 +71,24 @@ const DURATION_OPTIONS: { label: string; value: DurationFilter }[] = [
   { label: '30–60s', value: '30to60' },
 ];
 
+type SortOption = 'recent' | 'popular' | 'oldest';
+const SORT_OPTIONS: { label: string; value: SortOption }[] = [
+  { label: 'Recent', value: 'recent' },
+  { label: 'Popular', value: 'popular' },
+  { label: 'Oldest', value: 'oldest' },
+];
+
+type GenreFilter = 'all' | 'house' | 'techno' | 'trance' | 'dubstep' | 'dnb' | 'hardstyle';
+const GENRE_OPTIONS: { label: string; value: GenreFilter }[] = [
+  { label: 'All genres', value: 'all' },
+  { label: 'House', value: 'house' },
+  { label: 'Techno', value: 'techno' },
+  { label: 'Trance', value: 'trance' },
+  { label: 'Dubstep', value: 'dubstep' },
+  { label: 'DnB', value: 'dnb' },
+  { label: 'Hardstyle', value: 'hardstyle' },
+];
+
 // ── User card component ────────────────────────────────────
 
 function UserCard({
@@ -312,6 +330,9 @@ export default function SearchScreen({ navigation, route }: any) {
   const [isFocused, setIsFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [durationFilter, setDurationFilter] = useState<DurationFilter>('any');
+  const [sortBy, setSortBy] = useState<SortOption>('recent');
+  const [genreFilter, setGenreFilter] = useState<GenreFilter>('all');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [autocompleteResults, setAutocompleteResults] = useState<{ type: 'artist' | 'festival'; text: string }[]>([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [userLat, setUserLat] = useState<number | null>(null);
@@ -461,6 +482,39 @@ export default function SearchScreen({ navigation, route }: any) {
     });
   };
 
+  const filterByGenre = (items: Clip[]): Clip[] => {
+    if (genreFilter === 'all') return items;
+    return items.filter((item) => {
+      const genres = item.event?.genre_tags ?? [];
+      return genres.some((g: string) => g.toLowerCase() === genreFilter.toLowerCase());
+    });
+  };
+
+  const filterByVerified = (items: Clip[]): Clip[] => {
+    if (!verifiedOnly) return items;
+    return items.filter((item) => item.uploader?.is_verified === true);
+  };
+
+  const sortClips = (items: Clip[]): Clip[] => {
+    const sorted = [...items];
+    if (sortBy === 'recent') {
+      sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (sortBy === 'popular') {
+      sorted.sort((a, b) => (b.view_count ?? 0) - (a.view_count ?? 0));
+    } else if (sortBy === 'oldest') {
+      sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    }
+    return sorted;
+  };
+
+  const applyAllFilters = (items: Clip[]): Clip[] => {
+    let filtered = filterByDuration(items);
+    filtered = filterByGenre(filtered);
+    filtered = filterByVerified(filtered);
+    filtered = sortClips(filtered);
+    return filtered;
+  };
+
   const fetchAutocomplete = (text: string) => {
     if (autocompleteTimer.current) clearTimeout(autocompleteTimer.current);
     if (text.trim().length < 2) {
@@ -587,7 +641,7 @@ export default function SearchScreen({ navigation, route }: any) {
   }, [navigation]);
 
   const isSearching = query.trim().length >= 2;
-  const filteredResults = category !== 'Users' && category !== 'Artists' ? filterByDuration(results) : results;
+  const filteredResults = category !== 'Users' && category !== 'Artists' ? applyAllFilters(results) : results;
   const totalResults = category === 'Users' ? userResults.length : category === 'Artists' ? artistResults.length : filteredResults.length;
 
   // Partner festival names for badge display in search results
@@ -717,26 +771,77 @@ export default function SearchScreen({ navigation, route }: any) {
           ))}
         </ScrollView>
 
-        {/* Duration filter — shown when searching clips (not users) */}
+        {/* Filters — shown when searching clips (not users) */}
         {(category === 'All' || isSearching) && category !== 'Users' && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.durationRow}
-          >
-            {DURATION_OPTIONS.map((opt) => (
+          <View style={styles.filtersContainer}>
+            {/* Duration */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
+              {DURATION_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.filterPill, durationFilter === opt.value && styles.filterPillActive]}
+                  onPress={() => setDurationFilter(opt.value)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.filterPillText, durationFilter === opt.value && styles.filterPillTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Genre */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filterRow}
+            >
+              {GENRE_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.filterPill, genreFilter === opt.value && styles.filterPillActive]}
+                  onPress={() => setGenreFilter(opt.value)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[styles.filterPillText, genreFilter === opt.value && styles.filterPillTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Sort & Verified */}
+            <View style={styles.filterRow}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 1 }}>
+                {SORT_OPTIONS.map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.filterPill, sortBy === opt.value && styles.filterPillActive]}
+                    onPress={() => setSortBy(opt.value)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.filterPillText, sortBy === opt.value && styles.filterPillTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
               <TouchableOpacity
-                key={opt.value}
-                style={[styles.durationPill, durationFilter === opt.value && styles.durationPillActive]}
-                onPress={() => setDurationFilter(opt.value)}
+                style={[styles.verifiedToggle, verifiedOnly && styles.verifiedToggleActive]}
+                onPress={() => setVerifiedOnly(!verifiedOnly)}
                 activeOpacity={0.85}
               >
-                <Text style={[styles.durationPillText, durationFilter === opt.value && styles.durationPillTextActive]}>
-                  {opt.label}
+                <Ionicons name="checkmark-circle" size={14} color={verifiedOnly ? '#8B5CF6' : '#555'} />
+                <Text style={[styles.verifiedToggleText, verifiedOnly && styles.verifiedToggleTextActive]}>
+                  Verified
                 </Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            </View>
+          </View>
         )}
       </View>
 
@@ -1040,18 +1145,45 @@ const styles = StyleSheet.create({
   },
   autocompleteIcon: { fontSize: 16 },
   autocompleteText: { color: '#ddd', fontSize: 14, fontWeight: '500', flex: 1 },
-  durationRow: { gap: 8, paddingBottom: 4, paddingTop: 8 },
-  durationPill: {
+  filtersContainer: {
+    gap: 8,
+    paddingBottom: 8,
+    paddingTop: 8,
+  },
+  filterRow: { 
+    gap: 8, 
+    paddingBottom: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterPill: {
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
     backgroundColor: '#161616',
   },
-  durationPillActive: {
+  filterPillActive: {
     backgroundColor: '#8B5CF6',
   },
-  durationPillText: { color: '#666', fontSize: 12, fontWeight: '600' },
-  durationPillTextActive: { color: '#fff' },
+  filterPillText: { color: '#666', fontSize: 12, fontWeight: '600' },
+  filterPillTextActive: { color: '#fff' },
+  verifiedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    backgroundColor: '#161616',
+    marginLeft: 8,
+  },
+  verifiedToggleActive: {
+    backgroundColor: '#3B0764',
+    borderColor: '#8B5CF6',
+    borderWidth: 1,
+  },
+  verifiedToggleText: { color: '#666', fontSize: 12, fontWeight: '600' },
+  verifiedToggleTextActive: { color: '#8B5CF6' },
   categoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
