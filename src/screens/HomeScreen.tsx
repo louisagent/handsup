@@ -1039,7 +1039,19 @@ export default function HomeScreen({ navigation }: any) {
                     {featuredFestival.clips.map((clip, idx) => renderClipCard(clip, 'featured-', idx, visibleClipId === clip.id))}
                   </View>
                 ) : (
-                  <Text style={styles.emptyText}>0 clips. You're early. Set the tone</Text>
+                  <View style={styles.emptyStateCard}>
+                    <Ionicons name="videocam-outline" size={48} color="#333" style={{ marginBottom: 12 }} />
+                    <Text style={styles.emptyStateTitle}>No clips yet</Text>
+                    <Text style={styles.emptyStateText}>Be the first to share your festival moments</Text>
+                    <TouchableOpacity
+                      style={styles.emptyStateCTA}
+                      onPress={() => navigation.navigate('Upload')}
+                      activeOpacity={0.85}
+                    >
+                      <Ionicons name="add-circle" size={20} color="#fff" style={{ marginRight: 6 }} />
+                      <Text style={styles.emptyStateCTAText}>Upload your first clip</Text>
+                    </TouchableOpacity>
+                  </View>
                 )
               ) : (
                 <>
@@ -1276,6 +1288,37 @@ const styles = StyleSheet.create({
   emptyText: { color: '#555', fontSize: 14, textAlign: 'center', paddingHorizontal: 24, paddingVertical: 12 },
   emptyState: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 32 },
   emptyStateText: { color: '#555', fontSize: 15, textAlign: 'center', lineHeight: 22 },
+  emptyStateCard: {
+    alignItems: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+    marginHorizontal: 16,
+    marginVertical: 20,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1a1a1a',
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  emptyStateCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 20,
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  emptyStateCTAText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
   loadingMoreContainer: {
     paddingVertical: 20,
     alignItems: 'center',
