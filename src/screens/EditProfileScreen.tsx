@@ -49,6 +49,9 @@ export default function EditProfileScreen({ navigation }: any) {
   const [homeCity, setHomeCity] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [supportUrl, setSupportUrl] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [instagramHandle, setInstagramHandle] = useState('');
+  const [twitterHandle, setTwitterHandle] = useState('');
 
   // Username availability check
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
@@ -69,6 +72,9 @@ export default function EditProfileScreen({ navigation }: any) {
           setBio(p.bio ?? '');
           setAvatarUrl(p.avatar_url ?? null);
           setSupportUrl(p.support_url ?? '');
+          setWebsiteUrl(p.website_url ?? '');
+          setInstagramHandle(p.instagram_handle ?? '');
+          setTwitterHandle(p.twitter_handle ?? '');
         }
         setHomeCity(city ?? '');
       } catch {
@@ -240,6 +246,9 @@ export default function EditProfileScreen({ navigation }: any) {
           bio: bio.trim() || undefined,
           avatar_url: avatarUrl ?? undefined,
           support_url: supportUrl.trim() || null,
+          website_url: websiteUrl.trim() || null,
+          instagram_handle: instagramHandle.trim() || null,
+          twitter_handle: twitterHandle.trim() || null,
         }),
         AsyncStorage.setItem(HOME_CITY_KEY, homeCity.trim()),
       ]);
@@ -359,6 +368,53 @@ export default function EditProfileScreen({ navigation }: any) {
             maxLength={160}
             returnKeyType="done"
           />
+        </View>
+
+        {/* Social Links Section */}
+        <View style={styles.sectionDivider} />
+        <Text style={styles.sectionTitle}>Social Links</Text>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Website</Text>
+          <TextInput
+            style={styles.input}
+            value={websiteUrl}
+            onChangeText={setWebsiteUrl}
+            placeholder="https://yourwebsite.com"
+            placeholderTextColor="#444"
+            autoCapitalize="none"
+            keyboardType="url"
+          />
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Instagram</Text>
+          <View style={styles.inputWithPrefix}>
+            <Text style={styles.inputPrefix}>@</Text>
+            <TextInput
+              style={[styles.input, styles.inputWithPrefixInput]}
+              value={instagramHandle}
+              onChangeText={setInstagramHandle}
+              placeholder="username"
+              placeholderTextColor="#444"
+              autoCapitalize="none"
+            />
+          </View>
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <Text style={styles.fieldLabel}>Twitter / X</Text>
+          <View style={styles.inputWithPrefix}>
+            <Text style={styles.inputPrefix}>@</Text>
+            <TextInput
+              style={[styles.input, styles.inputWithPrefixInput]}
+              value={twitterHandle}
+              onChangeText={setTwitterHandle}
+              placeholder="username"
+              placeholderTextColor="#444"
+              autoCapitalize="none"
+            />
+          </View>
         </View>
 
         <View style={styles.fieldGroup}>
@@ -568,6 +624,33 @@ const styles = StyleSheet.create({
     height: 100,
     paddingTop: 12,
     textAlignVertical: 'top',
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#222',
+    marginVertical: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 16,
+  },
+  inputWithPrefix: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  inputPrefix: {
+    position: 'absolute',
+    left: 16,
+    top: 15,
+    fontSize: 15,
+    color: '#8B5CF6',
+    fontWeight: '600',
+    zIndex: 1,
+  },
+  inputWithPrefixInput: {
+    paddingLeft: 32,
   },
 
   // Save
