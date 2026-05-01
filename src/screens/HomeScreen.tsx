@@ -25,6 +25,8 @@ import { LazyImage } from '../components/LazyImage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Clip } from '../types';
 import { getRecentClips, getTrendingClips, getFollowingClips, recordDownload, getForYouFeed, getThisTimeLastYearClips, getFeaturedFestivalClips, trackView } from '../services/clips';
+import { getSuggestedUsers } from '../services/profiles';
+import { isFollowing, followUser, unfollowUser } from '../services/follows';
 import { getUpcomingEventsByCity, getUpcomingEvents } from '../services/events';
 import { getRepostFeed, RepostFeedItem } from '../services/repostsService';
 import { isOnline, subscribeToNetwork, cacheHomeFeed, getCachedHomeFeed } from '../services/network';
@@ -86,6 +88,8 @@ export default function HomeScreen({ navigation }: any) {
   // Track visible clip for auto-play
   const [visibleClipId, setVisibleClipId] = useState<string | null>(null);
   const [loadingMoreForYou, setLoadingMoreForYou] = useState(false);
+  const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
+  const [followingMap, setFollowingMap] = useState<Record<string, boolean>>({});
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
   useEffect(() => {
@@ -240,6 +244,20 @@ export default function HomeScreen({ navigation }: any) {
 
       // Load "This Time Last Year" clips (non-blocking)
       getThisTimeLastYearClips(5).then(setLastYearClips).catch(() => {});
+
+      // Load suggested users (non-blocking)
+      getSuggestedUsers(6).then(async (users) => {
+        setSuggestedUsers(users);
+        // Check following status for each user
+        const followingStatus: Record<string, boolean> = {};
+        await Promise.all(
+          users.map(async (user) => {
+            const isFollowingUser = await isFollowing(user.id).catch(() => false);
+            followingStatus[user.id] = isFollowingUser;
+          })
+        );
+        setFollowingMap(followingStatus);
+      }).catch(() => {});
 
       // Load upcoming events — try user's city first, fall back to global
       (async () => {
@@ -924,6 +942,78 @@ export default function HomeScreen({ navigation }: any) {
               </View>
             )}
 
+            {/* Suggested Users */}
+            {suggestedUsers.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="person-add-outline" size={16} color="#8B5CF6" />
+                    <Text style={styles.sectionTitle}>Suggested for you</Text>
+                  </View>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.suggestedUsersList}
+                >
+                  {suggestedUsers.map((user) => {
+                    const following = followingMap[user.id] ?? false;
+                    return (
+                      <TouchableOpacity
+                        key={user.id}
+                        style={styles.suggestedUserCard}
+                        onPress={() => navigation.navigate('UserProfile', { userId: user.id })}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.suggestedUserAvatar}>
+                          {user.avatar_url ? (
+                            <Image source={{ uri: user.avatar_url }} style={styles.suggestedUserAvatarImage} />
+                          ) : (
+                            <Text style={styles.suggestedUserInitials}>
+                              {(user.display_name ?? user.username ?? '?')
+                                .split(' ')
+                                .map((w: string) => w[0])
+                                .slice(0, 2)
+                                .join('')
+                                .toUpperCase()}
+                            </Text>
+                          )}
+                        </View>
+                        <Text style={styles.suggestedUserName} numberOfLines={1}>
+                          {user.display_name ?? user.username}
+                        </Text>
+                        <Text style={styles.suggestedUserUsername} numberOfLines={1}>
+                          @{user.username}
+                        </Text>
+                        <TouchableOpacity
+                          style={[styles.suggestedUserFollowBtn, following && styles.suggestedUserFollowingBtn]}
+                          onPress={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              if (following) {
+                                await unfollowUser(user.id);
+                                setFollowingMap(prev => ({ ...prev, [user.id]: false }));
+                              } else {
+                                await followUser(user.id);
+                                setFollowingMap(prev => ({ ...prev, [user.id]: true }));
+                              }
+                            } catch (err) {
+                              console.error('Follow error:', err);
+                            }
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Text style={[styles.suggestedUserFollowBtnText, following && styles.suggestedUserFollowingBtnText]}>
+                            {following ? 'Following' : 'Follow'}
+                          </Text>
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
             {/* For You algorithmic feed */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -1067,6 +1157,64 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
   },
   trendingList: { paddingHorizontal: 16, paddingRight: 6 },
+  suggestedUsersList: { paddingHorizontal: 16, paddingRight: 6, gap: 12 },
+  suggestedUserCard: {
+    width: 140,
+    backgroundColor: '#161616',
+    borderRadius: 12,
+    padding: 12,
+    alignItems: 'center',
+    gap: 8,
+  },
+  suggestedUserAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#2a2a2a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  suggestedUserAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  suggestedUserInitials: {
+    color: '#8B5CF6',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  suggestedUserName: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  suggestedUserUsername: {
+    color: '#666',
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  suggestedUserFollowBtn: {
+    backgroundColor: '#8B5CF6',
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 4,
+  },
+  suggestedUserFollowingBtn: {
+    backgroundColor: '#161616',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  suggestedUserFollowBtnText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  suggestedUserFollowingBtnText: {
+    color: '#666',
+  },
   trendCard: {
     width: 110,
     height: 195, // 9:16 portrait aspect ratio
