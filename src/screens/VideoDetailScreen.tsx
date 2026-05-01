@@ -32,6 +32,8 @@ import {
   createCollection,
   addClipToCollection,
   Collection,
+  toggleWatchLater,
+  isInWatchLater,
 } from '../services/collections';
 import { useSavedClips } from '../hooks/useSavedClips';
 import { splitByHashtagsAndMentions } from '../utils/tags';
@@ -189,6 +191,7 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
   const [reposted, setReposted] = useState(false);
   const [repostCount, setRepostCount] = useState(0);
   const [downloaded, setDownloaded] = useState(false);
+  const [inWatchLater, setInWatchLater] = useState(false);
   const [following, setFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -354,6 +357,11 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       ]);
       setReposted(repostedState);
       setRepostCount(rCount);
+      // Load Watch Later state
+      if (user) {
+        const watchLaterState = await isInWatchLater(video.id).catch(() => false);
+        setInWatchLater(watchLaterState);
+      }
     })();
   }, [video.id, video.uploader_id]);
 
@@ -730,6 +738,24 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       // Revert on error
       setReposted(!nowReposted);
       setRepostCount((prev) => (nowReposted ? Math.max(0, prev - 1) : prev + 1));
+    }
+  };
+
+  const handleWatchLater = async () => {
+    if (!isLoggedIn) {
+      Alert.alert('Sign in to save clips');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const nowInWatchLater = !inWatchLater;
+    // Optimistic UI update
+    setInWatchLater(nowInWatchLater);
+    try {
+      const result = await toggleWatchLater(video.id);
+      setInWatchLater(result);
+    } catch {
+      // Revert on error
+      setInWatchLater(!nowInWatchLater);
     }
   };
 
@@ -1386,6 +1412,17 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
               <Ionicons name="repeat" size={22} color={reposted ? '#10B981' : '#888'} />
               <Text style={[styles.actionLabel, reposted && styles.actionLabelReposted]}>
                 {repostCount > 0 ? repostCount.toLocaleString() : 'Repost'}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, inWatchLater && styles.actionBtnWatchLater]}
+              onPress={handleWatchLater}
+              activeOpacity={0.8}
+            >
+              <Ionicons name={inWatchLater ? 'time' : 'time-outline'} size={22} color={inWatchLater ? '#F59E0B' : '#888'} />
+              <Text style={[styles.actionLabel, inWatchLater && styles.actionLabelWatchLater]}>
+                {inWatchLater ? 'Saved' : 'Later'}
               </Text>
             </TouchableOpacity>
 
@@ -2056,6 +2093,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a1a12',
   },
   actionLabelReposted: { color: '#10B981' },
+  actionBtnWatchLater: {
+    borderColor: '#F59E0B44',
+    backgroundColor: '#1a1410',
+  },
+  actionLabelWatchLater: { color: '#F59E0B' },
 
   // Comments
   commentsSection: { marginTop: 4 },

@@ -99,3 +99,72 @@ export async function getCollectionClips(collectionId: string): Promise<Clip[]> 
     .map((row) => row.clips)
     .filter(Boolean) as Clip[];
 }
+
+// ── Get or create "Watch Later" collection ─────────────
+
+export async function getOrCreateWatchLaterCollection(): Promise<Collection> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Try to find existing Watch Later collection
+  const { data: existing, error: fetchError } = await supabase
+    .from('collections')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('name', 'Watch Later')
+    .maybeSingle();
+
+  if (fetchError) throw fetchError;
+  if (existing) return existing;
+
+  // Create new Watch Later collection
+  return await createCollection(
+    'Watch Later',
+    'Save clips to watch later',
+    false
+  );
+}
+
+// ── Check if clip is in Watch Later ───────────────────
+
+export async function isInWatchLater(clipId: string): Promise<boolean> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return false;
+
+  const { data: collection } = await supabase
+    .from('collections')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('name', 'Watch Later')
+    .maybeSingle();
+
+  if (!collection) return false;
+
+  const { data } = await supabase
+    .from('collection_clips')
+    .select('clip_id')
+    .eq('collection_id', collection.id)
+    .eq('clip_id', clipId)
+    .maybeSingle();
+
+  return !!data;
+}
+
+// ── Toggle clip in Watch Later ──────────────────────
+
+export async function toggleWatchLater(clipId: string): Promise<boolean> {
+  const collection = await getOrCreateWatchLaterCollection();
+  const inWatchLater = await isInWatchLater(clipId);
+
+  if (inWatchLater) {
+    await removeClipFromCollection(collection.id, clipId);
+    return false;
+  } else {
+    await addClipToCollection(collection.id, clipId);
+    return true;
+  }
+}
