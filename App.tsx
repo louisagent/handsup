@@ -35,6 +35,7 @@ import EventsScreen from './src/screens/EventsScreen';
 import EditProfileScreen from './src/screens/EditProfileScreen';
 import VerticalFeedScreen from './src/screens/VerticalFeedScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
+import FollowListScreen from './src/screens/FollowListScreen';
 import AddEventScreen from './src/screens/AddEventScreen';
 import ReportScreen from './src/screens/ReportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -453,6 +454,11 @@ export default function App() {
             title: route.params?.username ? `@${route.params.username}` : 'Profile',
             headerBackTitle: 'Back',
           })}
+        />
+        <Stack.Screen
+          name="FollowList"
+          component={FollowListScreen as any}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="AddEvent"

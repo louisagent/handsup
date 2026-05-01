@@ -21,6 +21,12 @@ export interface Profile {
   pinned_clip_ids?: string[];
   /** Ko-fi, PayPal, or other support/tip link. */
   support_url?: string | null;
+  /** Instagram username (without @) */
+  instagram_handle?: string | null;
+  /** Twitter/X username (without @) */
+  twitter_handle?: string | null;
+  /** Personal website URL */
+  website_url?: string | null;
   /** XP points earned through actions (uploads, likes, comments, etc.) */
   xp?: number;
   /** Current level derived from XP */

@@ -20,6 +20,7 @@ import {
   Image,
   Modal,
   Dimensions,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -599,6 +600,52 @@ export default function ProfileScreen({ navigation }: any) {
         </Text>
         {profile?.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
 
+        {/* ── Social Links ── */}
+        {(profile?.website_url || profile?.instagram_handle || profile?.twitter_handle || profile?.support_url) && (
+          <View style={styles.socialLinks}>
+            {profile.website_url && (
+              <TouchableOpacity
+                style={styles.socialLink}
+                onPress={() => Linking.openURL(profile.website_url!)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="globe-outline" size={16} color="#8B5CF6" />
+                <Text style={styles.socialLinkText}>Website</Text>
+              </TouchableOpacity>
+            )}
+            {profile.instagram_handle && (
+              <TouchableOpacity
+                style={styles.socialLink}
+                onPress={() => Linking.openURL(`https://instagram.com/${profile.instagram_handle}`)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="logo-instagram" size={16} color="#8B5CF6" />
+                <Text style={styles.socialLinkText}>@{profile.instagram_handle}</Text>
+              </TouchableOpacity>
+            )}
+            {profile.twitter_handle && (
+              <TouchableOpacity
+                style={styles.socialLink}
+                onPress={() => Linking.openURL(`https://twitter.com/${profile.twitter_handle}`)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="logo-twitter" size={16} color="#8B5CF6" />
+                <Text style={styles.socialLinkText}>@{profile.twitter_handle}</Text>
+              </TouchableOpacity>
+            )}
+            {profile.support_url && (
+              <TouchableOpacity
+                style={styles.socialLink}
+                onPress={() => Linking.openURL(profile.support_url!)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="heart-outline" size={16} color="#8B5CF6" />
+                <Text style={styles.socialLinkText}>Support</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* ── Stats Row ── */}
         <View style={styles.statsRow}>
           <TouchableOpacity
@@ -615,15 +662,23 @@ export default function ProfileScreen({ navigation }: any) {
             <Text style={styles.statLabel}>Downloads</Text>
           </View>
           <View style={styles.statDivider} />
-          <View style={styles.stat}>
+          <TouchableOpacity
+            style={styles.stat}
+            onPress={() => navigation.navigate('FollowList', { userId: profile?.id, tab: 'following' })}
+            activeOpacity={0.75}
+          >
             <Text style={styles.statValue}>{followCounts.following.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Following</Text>
-          </View>
+            <Text style={[styles.statLabel, styles.statLabelTappable]}>Following</Text>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.stat}>
+          <TouchableOpacity
+            style={styles.stat}
+            onPress={() => navigation.navigate('FollowList', { userId: profile?.id, tab: 'followers' })}
+            activeOpacity={0.75}
+          >
             <Text style={styles.statValue}>{followCounts.followers.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Followers</Text>
-          </View>
+            <Text style={[styles.statLabel, styles.statLabelTappable]}>Followers</Text>
+          </TouchableOpacity>
           {streak > 0 && (
             <>
               <View style={styles.statDivider} />
@@ -997,6 +1052,28 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 6,
     maxWidth: 280,
+  },
+  socialLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  socialLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#161616',
+    borderRadius: 16,
+  },
+  socialLinkText: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    fontWeight: '600',
   },
 
   // Stats
