@@ -23,8 +23,46 @@ All critical tables are **already deployed**. No blocking migrations pending.
 | `analytics_events` | ✅ Exists | |
 | `push_notification_log` | ✅ Exists | |
 | `user_badges` | ✅ Exists | XP/badges migration applied |
+| `clip_reactions` | ⚠️ **NEW** | **Required for clip reactions feature** |
 | `likes` (generic) | ℹ️ Not needed | App uses `clip_likes` — no code references `likes` table |
 | `push_tokens` (separate table) | ℹ️ Not needed | App uses `push_token` column on `profiles` — confirmed present |
+
+## ⚠️ Required Migrations for New Features
+
+### 1. Clip Reactions Table (Feature 4)
+**Status:** Required for clip reactions feature
+
+```sql
+-- Create clip_reactions table
+CREATE TABLE IF NOT EXISTS public.clip_reactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  clip_id UUID NOT NULL REFERENCES public.clips(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(clip_id, user_id) -- One reaction per user per clip
+);
+
+-- Add indexes for performance
+CREATE INDEX IF NOT EXISTS clip_reactions_clip_id_idx ON public.clip_reactions(clip_id);
+CREATE INDEX IF NOT EXISTS clip_reactions_user_id_idx ON public.clip_reactions(user_id);
+
+-- Enable RLS
+ALTER TABLE public.clip_reactions ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies
+CREATE POLICY "Anyone can view reactions"
+  ON public.clip_reactions FOR SELECT
+  USING (true);
+
+CREATE POLICY "Users can add their own reactions"
+  ON public.clip_reactions FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own reactions"
+  ON public.clip_reactions FOR DELETE
+  USING (auth.uid() = user_id);
+```
 
 ## ⚠️ Optional / Future Migrations
 
