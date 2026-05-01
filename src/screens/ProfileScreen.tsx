@@ -908,6 +908,11 @@ export default function ProfileScreen({ navigation }: any) {
             onPress={() => navigation.navigate('SavedClips')}
           />
           <SettingsRow
+            icon="folder-outline"
+            label="Collections"
+            onPress={() => navigation.navigate('Collections')}
+          />
+          <SettingsRow
             icon="download-outline"
             label="Download History"
             onPress={() => navigation.navigate('DownloadHistory')}

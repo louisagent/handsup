@@ -36,6 +36,8 @@ import EditProfileScreen from './src/screens/EditProfileScreen';
 import VerticalFeedScreen from './src/screens/VerticalFeedScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
 import FollowListScreen from './src/screens/FollowListScreen';
+import CollectionsScreen from './src/screens/CollectionsScreen';
+import CollectionDetailScreen from './src/screens/CollectionDetailScreen';
 import AddEventScreen from './src/screens/AddEventScreen';
 import ReportScreen from './src/screens/ReportScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -458,6 +460,16 @@ export default function App() {
         <Stack.Screen
           name="FollowList"
           component={FollowListScreen as any}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Collections"
+          component={CollectionsScreen as any}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="CollectionDetail"
+          component={CollectionDetailScreen as any}
           options={{ headerShown: false }}
         />
         <Stack.Screen
