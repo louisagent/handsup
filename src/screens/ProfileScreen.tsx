@@ -775,7 +775,11 @@ export default function ProfileScreen({ navigation }: any) {
           <Text style={styles.sectionTitle}>Best Clip</Text>
           <TouchableOpacity
             style={styles.bestClipCard}
-            onPress={() => navigation.navigate('VideoDetail', { video: bestClip })}
+            onPress={() => navigation.navigate('VideoDetail', {
+              video: bestClip,
+              playlist: sortedClips,
+              initialIndex: sortedClips.findIndex(c => c.id === bestClip.id),
+            })}
             activeOpacity={0.85}
           >
             {bestClip.thumbnail_url ? (
@@ -808,7 +812,11 @@ export default function ProfileScreen({ navigation }: any) {
               key={clip.id}
               clip={clip}
               isPinned
-              onPress={() => navigation.navigate('VideoDetail', { video: clip })}
+              onPress={() => navigation.navigate('VideoDetail', {
+                video: clip,
+                playlist: sortedClips,
+                initialIndex: sortedClips.findIndex(c => c.id === clip.id),
+              })}
               onLongPress={() => handleLongPressClip(clip)}
             />
           ))}
@@ -829,11 +837,15 @@ export default function ProfileScreen({ navigation }: any) {
         ) : (
           <>
             <View style={styles.clipsGrid}>
-              {sortedClips.map((clip) => (
+              {sortedClips.map((clip, index) => (
                 <GridClipTile
                   key={clip.id}
                   clip={clip}
-                  onPress={() => navigation.navigate('VideoDetail', { video: clip })}
+                  onPress={() => navigation.navigate('VideoDetail', {
+                    video: clip,
+                    playlist: sortedClips,
+                    initialIndex: index,
+                  })}
                   onLongPress={() => handleLongPressClip(clip)}
                 />
               ))}

@@ -15,6 +15,7 @@ import {
   Linking,
   Share,
   Image,
+  PanResponder,
 } from 'react-native';
 import { Video, ResizeMode, AVPlaybackStatus } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
@@ -50,7 +51,11 @@ import * as StoreReview from 'expo-store-review';
 import { incrementChallengeProgress } from '../services/challenges';
 
 type VideoDetailRouteParams = {
-  VideoDetail: { video: Clip };
+  VideoDetail: {
+    video: Clip;
+    playlist?: Clip[];
+    initialIndex?: number;
+  };
 };
 
 type Props = {
@@ -163,8 +168,9 @@ function CommentRow({ comment, currentUserId, onDelete, onMentionPress, onReact,
 // ── Main Screen ────────────────────────────────────────────
 
 export default function VideoDetailScreen({ route, navigation }: Props) {
-  const { video: initialVideo } = route.params;
+  const { video: initialVideo, playlist, initialIndex } = route.params;
   const [video, setVideo] = useState<Clip>(initialVideo);
+  const [currentIndex, setCurrentIndex] = useState(initialIndex ?? 0);
   const videoRef = useRef<Video>(null);
   const { isSaved, toggleSave } = useSavedClips();
   const controlsOpacity = useRef(new Animated.Value(1)).current;
@@ -219,6 +225,59 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
   // View count animation
   const [displayViewCount, setDisplayViewCount] = useState(0);
   const hasAnimatedViews = useRef(false);
+
+  // ── Playlist navigation ──────────────────────────────
+
+  const hasPlaylist = playlist && playlist.length > 1;
+  const hasPrev = hasPlaylist && currentIndex > 0;
+  const hasNext = hasPlaylist && currentIndex < playlist.length - 1;
+
+  const goToPrev = useCallback(() => {
+    if (!hasPrev || !playlist) return;
+    const newIndex = currentIndex - 1;
+    setCurrentIndex(newIndex);
+    setVideo(playlist[newIndex]);
+    // Reset video state
+    setIsPlaying(false);
+    setVideoEnded(false);
+    setPositionMillis(0);
+    videoRef.current?.unloadAsync();
+  }, [hasPrev, playlist, currentIndex]);
+
+  const goToNext = useCallback(() => {
+    if (!hasNext || !playlist) return;
+    const newIndex = currentIndex + 1;
+    setCurrentIndex(newIndex);
+    setVideo(playlist[newIndex]);
+    // Reset video state
+    setIsPlaying(false);
+    setVideoEnded(false);
+    setPositionMillis(0);
+    videoRef.current?.unloadAsync();
+  }, [hasNext, playlist, currentIndex]);
+
+  // ── Swipe gestures for playlist navigation ──────────────
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !!hasPlaylist,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        // Only capture horizontal swipes (dx > dy)
+        return !!hasPlaylist && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 20;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (!hasPlaylist) return;
+        // Swipe right = previous (dx > 0)
+        if (gestureState.dx > 80 && hasPrev) {
+          goToPrev();
+        }
+        // Swipe left = next (dx < 0)
+        else if (gestureState.dx < -80 && hasNext) {
+          goToNext();
+        }
+      },
+    })
+  ).current;
 
   // ── Controls auto-hide ──────────────────────────────────
 
@@ -885,7 +944,7 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
 
         {/* ── Video Player ── */}
-        <View style={styles.videoWrapper}>
+        <View style={styles.videoWrapper} {...panResponder.panHandlers}>
           {video.video_url ? (
             <>
               <Video
@@ -972,6 +1031,37 @@ export default function VideoDetailScreen({ route, navigation }: Props) {
                 >
                   <Ionicons name="expand-outline" size={20} color="#fff" />
                 </TouchableOpacity>
+
+                {/* Prev button — left side */}
+                {hasPrev && (
+                  <TouchableOpacity
+                    style={styles.prevBtn}
+                    onPress={goToPrev}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="chevron-back" size={32} color="#fff" />
+                  </TouchableOpacity>
+                )}
+
+                {/* Next button — right side */}
+                {hasNext && (
+                  <TouchableOpacity
+                    style={styles.nextBtn}
+                    onPress={goToNext}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="chevron-forward" size={32} color="#fff" />
+                  </TouchableOpacity>
+                )}
+
+                {/* Playlist indicator — top center */}
+                {hasPlaylist && (
+                  <View style={styles.playlistIndicator}>
+                    <Text style={styles.playlistIndicatorText}>
+                      {currentIndex + 1} / {playlist!.length}
+                    </Text>
+                  </View>
+                )}
               </Animated.View>
 
               {/* Replay overlay — centred, shown when video ends */}
@@ -1611,6 +1701,45 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  prevBtn: {
+    position: 'absolute',
+    left: 12,
+    top: '50%',
+    marginTop: -24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextBtn: {
+    position: 'absolute',
+    right: 12,
+    top: '50%',
+    marginTop: -24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playlistIndicator: {
+    position: 'absolute',
+    top: 12,
+    left: '50%',
+    marginLeft: -40,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  playlistIndicatorText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   replayOverlay: {
     ...StyleSheet.absoluteFillObject,
