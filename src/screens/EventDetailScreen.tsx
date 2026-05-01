@@ -1413,6 +1413,46 @@ export default function EventDetailScreen({ route, navigation }: any) {
               </TouchableOpacity>
             </View>
 
+            {/* ── About Section ── */}
+            {event.is_partner && (
+              <LinearGradient
+                colors={['#3B0764', '#4C1D95']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.aboutPartnerBadge}
+              >
+                <Ionicons name="checkmark-circle" size={16} color="#C4B5FD" style={{ marginRight: 6 }} />
+                <Text style={styles.aboutPartnerBadgeText}>Official Handsup Festival Partner</Text>
+              </LinearGradient>
+            )}
+
+            <Text style={styles.infoLabel}>About</Text>
+            <Text style={styles.infoBody}>{event.description}</Text>
+
+            <Text style={styles.infoLabel}>Dates</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="calendar-outline" size={14} color="#8B5CF6" />
+              <Text style={styles.infoBody}>{event.dates ?? ''}</Text>
+            </View>
+
+            <Text style={styles.infoLabel}>Expected Attendance</Text>
+            <Text style={styles.infoBody}>👥 {event.attendees}</Text>
+
+            <Text style={styles.infoLabel}>Genres</Text>
+            <View style={styles.genreTagsRow}>
+              {event.genre.map((g) => (
+                <View key={g} style={styles.genreChip}>
+                  <Text style={styles.genreText}>{g}</Text>
+                </View>
+              ))}
+            </View>
+
+            {event.upcoming && (
+              <TouchableOpacity style={styles.ticketBtn} activeOpacity={0.85}>
+                <Text style={styles.ticketBtnText}>🎫 Get tickets</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Partner link for non-partner events */}
             {!event.is_partner && (
               <TouchableOpacity
